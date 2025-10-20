@@ -6,7 +6,7 @@ import Link from "next/link";
 const LandingPage = async () => {
   const session = await getSession();
 
-  if(session) redirect("/home")
+  if(session) redirect("/dashboard")
   return (
     <div className="flex flex-col gap-1 justify-center items-center h-screen w-screen">
       <h1>This is the Landing page</h1>
