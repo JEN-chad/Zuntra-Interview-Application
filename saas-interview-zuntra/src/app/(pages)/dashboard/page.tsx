@@ -10,7 +10,7 @@ const Dashboard = async () => {
   const user = session.user;
   return (
     <div>
-      <WelcomeContainer />
+      {/* <WelcomeContainer /> */}
       <h2 className="text-2xl font-semibold my-4">Dashboard</h2>
       <CreateOptions />
       <LatestInterviewsList />

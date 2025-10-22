@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from './_components/AppSidebar';
+import WelcomeContainer from './dashboard/_components/WelcomeContainer';
 
 const DashboardProvider = ({
   children,
@@ -9,8 +10,9 @@ const DashboardProvider = ({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <div className="w-full">
-        <SidebarTrigger />
+      <div className="w-full p-4">
+        <SidebarTrigger className="fixed" />
+        <WelcomeContainer />
         {children}</div>
     </SidebarProvider>
   );
