@@ -175,7 +175,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
         <Input
           placeholder="e.g. Full Stack Developer"
           value={jobPosition}
-          onChange={(e) => onHandleInputChange("jobPosition", e.target.value)}
+          onChange={(e) => setJobPosition(e.target.value)}
           disabled={isLoading}
         />
       </div>
@@ -189,7 +189,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
           placeholder="Enter details of the job description"
           className="h-[200px]"
           value={jobDescription}
-          onChange={(e) => onHandleInputChange("jobDescription", e.target.value)}
+          onChange={(e) => setJobDescription(e.target.value)}
           disabled={isLoading}
         />
       </div>
@@ -200,7 +200,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
           Interview Duration
         </label>
         <Select
-          onValueChange={(value: string) => onHandleInputChange("interviewDuration", value)}
+          onValueChange={(value: string) => setDuration(value)}
           disabled={isLoading}
         >
           <SelectTrigger className="w-full">

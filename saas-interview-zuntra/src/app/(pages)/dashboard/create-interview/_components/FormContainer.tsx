@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent } from "react";
+import { ChangeEvent, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -18,9 +18,14 @@ import { toast } from "sonner";
 interface FormContainerProps {
   formData: Record<string, any>;
   onHandleInputChange: (field: string, value: any) => void;
+  GoToNextStep: () => void;
 }
 
-const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) => {
+const FormContainer = ({
+  formData,
+  onHandleInputChange,
+  GoToNextStep,
+}: FormContainerProps) => {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>): void => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -49,7 +54,13 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
   };
 
   const handleSubmit = (): void => {
-    const { jobPosition, jobDescription, interviewDuration, file } = formData;
+    const {
+      jobPosition,
+      jobDescription,
+      interviewDuration,
+      interviewType,
+      experienceLevel,
+    } = formData;
 
     if (!jobPosition?.trim()) {
       toast.error("Job Position is required.");
@@ -66,20 +77,41 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
       return;
     }
 
-    if (file) {
-      toast.success("File uploaded successfully. Ready to review questions!");
-    } else {
-      toast("Generating interview questions...");
+    if (!interviewType || interviewType.length === 0) {
+      toast.error("Select at least one Interview Type.");
+      return;
     }
+
+    if (!experienceLevel) {
+      toast.error("Select an Experience Level.");
+      return;
+    }
+
+    toast.success("All required details added successfully!");
+    GoToNextStep();
   };
 
   const clearField = (field: string) => onHandleInputChange(field, null);
+
+  // ✅ Compute whether all required fields are filled
+  const isFormValid = useMemo(() => {
+    return (
+      formData.jobPosition?.trim() &&
+      formData.jobDescription?.trim() &&
+      formData.interviewDuration &&
+      formData.experienceLevel &&
+      Array.isArray(formData.interviewType) &&
+      formData.interviewType.length > 0
+    );
+  }, [formData]);
 
   return (
     <div className="w-full md:w-[95%] bg-white p-6 mt-6 rounded-xl shadow-md border border-slate-200 mx-auto md:mr-3 transition-all duration-300">
       {/* Job Position */}
       <div className="flex flex-col gap-2 relative">
-        <label className="text-sm font-medium text-gray-700">Job Position</label>
+        <label className="text-sm font-medium text-gray-700">
+          Job Position <span className="text-red-500">*</span>
+        </label>
         <div className="relative">
           <Input
             placeholder="e.g. Full Stack Developer"
@@ -100,7 +132,9 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
 
       {/* Job Description */}
       <div className="flex flex-col gap-2 mt-5 relative">
-        <label className="text-sm font-medium text-gray-700">Job Description</label>
+        <label className="text-sm font-medium text-gray-700">
+          Job Description <span className="text-red-500">*</span>
+        </label>
         <div className="relative">
           <Textarea
             placeholder="Enter details of the job description"
@@ -124,7 +158,9 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
       <div className="w-full flex flex-col md:flex-row gap-4 mt-5">
         {/* Resume Score */}
         <div className="flex-1 flex flex-col gap-2 relative">
-          <label className="text-sm font-medium text-gray-700">Resume Score (0–100)</label>
+          <label className="text-sm font-medium text-gray-700">
+            Resume Score (0–100)
+          </label>
           <div className="relative">
             <Input
               type="number"
@@ -151,7 +187,9 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
 
         {/* Interview Duration */}
         <div className="flex-1 flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">Duration (mins)</label>
+          <label className="text-sm font-medium text-gray-700">
+            Duration (mins) <span className="text-red-500">*</span>
+          </label>
           <Select
             onValueChange={(value: string) =>
               onHandleInputChange("interviewDuration", value === "none" ? null : value)
@@ -175,7 +213,9 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
 
       {/* Interview Type */}
       <div className="flex flex-col gap-3 mt-5">
-        <label className="text-sm font-medium text-gray-700">Interview Type</label>
+        <label className="text-sm font-medium text-gray-700">
+          Interview Type <span className="text-red-500">*</span>
+        </label>
         <div className="flex gap-3 flex-wrap">
           {InterviewType.map((type: any, index: number) => {
             const isSelected = Array.isArray(formData.interviewType)
@@ -200,12 +240,11 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
               <div
                 key={index}
                 onClick={toggleType}
-                className={`flex gap-2 cursor-pointer items-center border rounded-2xl p-1 px-2 transition-all
-                  ${
-                    isSelected
-                      ? "bg-blue-500 text-white border-blue-500"
-                      : "bg-blue-50 border-gray-200 hover:bg-blue-400 hover:text-white"
-                  }`}
+                className={`flex gap-2 cursor-pointer items-center border rounded-2xl p-1 px-2 transition-all ${
+                  isSelected
+                    ? "bg-blue-500 text-white border-blue-500"
+                    : "bg-blue-50 border-gray-200 hover:bg-blue-400 hover:text-white"
+                }`}
               >
                 <type.icon size={20} />
                 <span className="text-sm">{type.title}</span>
@@ -227,7 +266,9 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
 
       {/* Experience Level */}
       <div className="flex flex-col gap-3 mt-5">
-        <label className="text-sm font-medium text-gray-700">Experience Level</label>
+        <label className="text-sm font-medium text-gray-700">
+          Experience Level <span className="text-red-500">*</span>
+        </label>
         <div className="flex gap-8 flex-wrap">
           {[
             { level: "Junior", icon: User },
@@ -240,12 +281,11 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
               <div
                 key={level}
                 onClick={() => onHandleInputChange("experienceLevel", level)}
-                className={`flex gap-2 cursor-pointer items-center border rounded-2xl p-1 px-3 transition-all
-                  ${
-                    isSelected
-                      ? "bg-blue-500 text-white border-blue-500"
-                      : "bg-blue-50 border-gray-200 hover:bg-blue-400 hover:text-white"
-                  }`}
+                className={`flex gap-2 cursor-pointer items-center border rounded-2xl p-1 px-3 transition-all ${
+                  isSelected
+                    ? "bg-blue-500 text-white border-blue-500"
+                    : "bg-blue-50 border-gray-200 hover:bg-blue-400 hover:text-white"
+                }`}
               >
                 <Icon size={18} />
                 <span className="text-sm">{level}</span>
@@ -265,7 +305,7 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
         </div>
       </div>
 
-      {/* File Upload */}
+      {/* File Upload (Optional) */}
       <div className="flex flex-col gap-2 mt-5">
         <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
           Upload Questions (Optional)
@@ -296,7 +336,11 @@ const FormContainer = ({ formData, onHandleInputChange }: FormContainerProps) =>
 
       {/* Submit Button */}
       <div className="mt-7 flex justify-end">
-        <Button className="flex gap-2 items-center" onClick={handleSubmit}>
+        <Button
+          className="flex gap-2 items-center"
+          onClick={handleSubmit}
+          disabled={!isFormValid}
+        >
           {formData.file ? "Review Questions" : "Generate Questions"} <ArrowRight />
         </Button>
       </div>
