@@ -1,6 +1,5 @@
 import { getSession } from "@/lib/auth";
 import {redirect} from "next/navigation";
-import WelcomeContainer from "./_components/WelcomeContainer";
 import CreateOptions from "./_components/CreateOptions";
 import LatestInterviewsList from "./_components/LatestInterviewsList";
 
