@@ -19,7 +19,6 @@ export async function POST(req: Request) {
       resumeScore,
     } = body;
 
-    // Basic validation
     if (!userId || !userEmail) {
       return NextResponse.json(
         { error: "Missing required fields (userId or userEmail)" },
@@ -27,7 +26,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Normalize `interviewType` (text[])
     const typeArray =
       Array.isArray(interviewType) && interviewType.length > 0
         ? interviewType.map((t) => String(t))
@@ -35,13 +33,9 @@ export async function POST(req: Request) {
         ? [interviewType.trim()]
         : null;
 
-    // Normalize `questionList` (JSONB)
     const questionsJson =
-      questionList && typeof questionList === "object"
-        ? questionList
-        : null;
+      questionList && typeof questionList === "object" ? questionList : null;
 
-    // Convert resumeScore to integer
     const resumeScoreInt =
       typeof resumeScore === "string"
         ? parseInt(resumeScore, 10)
@@ -49,14 +43,15 @@ export async function POST(req: Request) {
         ? resumeScore
         : null;
 
-    // Insert interview record
+    const interviewId = uuidv4();
+
     await db.insert(interview).values({
-      id: uuidv4(),
+      id: interviewId,
       userId,
       userEmail,
       jobPosition: jobPosition ?? null,
       jobDescription: jobDescription ?? null,
-      duration: interviewDuration ?? null, // use correct key
+      duration: interviewDuration ?? null,
       type: typeArray,
       experienceLevel: experienceLevel ?? null,
       questionList: questionsJson,
@@ -64,7 +59,11 @@ export async function POST(req: Request) {
       createdAt: new Date(),
     });
 
-    return NextResponse.json({ success: true, message: "Interview saved!" });
+    return NextResponse.json({
+      success: true,
+      message: "Interview saved successfully!",
+      interviewId, // ✅ send back to frontend
+    });
   } catch (error: any) {
     console.error("❌ Error saving interview:", error);
     return NextResponse.json(

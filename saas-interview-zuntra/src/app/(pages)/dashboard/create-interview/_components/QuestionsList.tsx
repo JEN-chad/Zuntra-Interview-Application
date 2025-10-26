@@ -5,7 +5,6 @@ import { Loader2, RefreshCcw, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-// ✅ Type-safe session and question interfaces
 interface SessionUser {
   id: string;
   email: string;
@@ -24,9 +23,14 @@ interface QuestionItem {
 interface QuestionsListProps {
   formData: Record<string, any>;
   session: Session;
+  onCreateLink: (interviewId: string) => void; // ✅ parent callback
 }
 
-const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
+const QuestionsList: React.FC<QuestionsListProps> = ({
+  formData,
+  session,
+  onCreateLink,
+}) => {
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +48,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
       let response: Response;
 
       if (formData.file) {
-        // ✅ Handle file-based payload
         const body = new FormData();
         Object.entries(formData).forEach(([key, value]) => {
           if (value == null) return;
@@ -59,7 +62,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
 
         response = await fetch(apiEndpoint, { method: "POST", body });
       } else {
-        // ✅ Handle JSON payload
         response = await fetch(apiEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -87,16 +89,14 @@ const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
     } finally {
       setLoading(false);
     }
-  }, [formData, session]); // ✅ added session dependency
+  }, [formData, session]);
 
-  // 🔁 Auto-generate when formData changes
   useEffect(() => {
     if (Object.keys(formData).length > 0 && !loading) {
       generateAiInterviewQuestions();
     }
   }, [formData, generateAiInterviewQuestions]);
 
-  // --- 🧠 Save interview ---
   // --- 🧠 Save interview ---
   const handleFinish = async () => {
     if (loading) return;
@@ -114,7 +114,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
     try {
       setLoading(true);
 
-      // ✅ Normalize `type` before sending (array format)
       const normalizedType =
         Array.isArray(formData.type) && formData.type.length > 0
           ? formData.type.map((t: any) => String(t))
@@ -124,7 +123,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
 
       const payload = {
         ...formData,
-        type: normalizedType, // ✅ ensure array
+        type: normalizedType,
         userId: session.user.id,
         userEmail: session.user.email,
         questionList: questions,
@@ -141,7 +140,15 @@ const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
 
       if (!res.ok) throw new Error(data.error || "Failed to save interview.");
 
-      toast.success("✅ Interview details saved successfully!");
+      const interviewId = data.interviewId;
+
+      if (interviewId) {
+        toast.success("✅ Interview saved successfully!");
+        // ✅ Pass to parent when finish clicked
+        onCreateLink(interviewId);
+      } else {
+        toast.info("Interview saved, but ID not found.");
+      }
     } catch (err: any) {
       console.error("❌ Save interview error:", err);
       toast.error(err.message || "Failed to save interview.");
@@ -200,7 +207,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
         🎯 Your Generated Questions
       </h2>
 
-      {/* --- Display Questions --- */}
       <div className="flex flex-col gap-5">
         {questions.map((item, idx) => (
           <div
@@ -217,7 +223,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
         ))}
       </div>
 
-      {/* --- 🔘 Action Buttons --- */}
       <div className="flex justify-between mt-10">
         <Button
           variant="outline"
@@ -225,19 +230,11 @@ const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
           disabled={loading}
           className="flex items-center gap-2 w-36 border-blue-600 text-blue-600 hover:bg-blue-50"
         >
-          {loading ? (
-            <>
-              <Loader2 className="animate-spin" size={16} /> Regenerating...
-            </>
-          ) : (
-            <>
-              <RefreshCcw size={16} /> Regenerate
-            </>
-          )}
+          <RefreshCcw size={16} /> Regenerate
         </Button>
 
         <Button
-          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-32"
+          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-56"
           onClick={handleFinish}
           disabled={loading}
         >
@@ -247,7 +244,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({ formData, session }) => {
             </>
           ) : (
             <>
-              Finish <ArrowRight size={16} />
+              Finish & Generate Link <ArrowRight size={16} />
             </>
           )}
         </Button>
