@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# Vertex service account keys
+vertex-account.json
+vertex-account-zuntra.json
+*.json
+!package.json
+!tsconfig.json
