@@ -3,19 +3,34 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const pdf = require("pdf-parse");
 const mammoth = require("mammoth");
 
-// --- 🔑 Validate API Key ---
+// ---------------------------------------------
+// 🔑 Validate API Key
+// ---------------------------------------------
 if (!process.env.GOOGLE_API_KEY) {
   throw new Error("Missing GOOGLE_API_KEY environment variable");
 }
 
-// --- 🤖 Initialize Gemini Model ---
+// ---------------------------------------------
+// 🤖 Initialize Gemini Client
+// ---------------------------------------------
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
-  generationConfig: {
-    responseMimeType: "application/json",
-  },
-});
+
+// ---------------------------------------------
+// 🔁 MODEL FAILOVER LIST
+// ---------------------------------------------
+const MODEL_FAILOVER_LIST = [
+  "gemini-2.0-flash-thinking",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
+];
+
+function getModel(name: string) {
+  return genAI.getGenerativeModel({
+    model: name,
+    generationConfig: { responseMimeType: "application/json" },
+  });
+}
 
 // ===================================================================
 // MAIN HANDLER
@@ -24,7 +39,7 @@ export async function POST(request: Request) {
   try {
     const contentType = request.headers.get("content-type");
 
-    // --- Case 1: Review uploaded file ---
+    // ----------------- Resume Review (file upload) -----------------
     if (contentType?.includes("multipart/form-data")) {
       const formData = await request.formData();
       const file = formData.get("file") as File | null;
@@ -34,6 +49,7 @@ export async function POST(request: Request) {
       }
 
       const fileText = await extractTextFromFile(file);
+
       const jobPosition = formData.get("jobPosition") as string;
       const jobDescription = formData.get("jobDescription") as string;
       const interviewTypes = JSON.parse(
@@ -51,7 +67,7 @@ export async function POST(request: Request) {
       return NextResponse.json(normalizeToType2(aiResponse));
     }
 
-    // --- Case 2: Generate new questions ---
+    // ----------------- Question Generation (JSON body) -----------------
     else if (contentType?.includes("application/json")) {
       const body = await request.json();
       const {
@@ -74,7 +90,6 @@ export async function POST(request: Request) {
       return NextResponse.json(normalizeToType2(aiResponse));
     }
 
-    // --- Unsupported content type ---
     return NextResponse.json(
       { error: "Unsupported Content-Type" },
       { status: 415 }
@@ -89,15 +104,13 @@ export async function POST(request: Request) {
 }
 
 // ===================================================================
-// HELPERS
+// 🧾 Extract text from file
 // ===================================================================
-
-// --- 🧾 Extract text from uploaded file ---
 async function extractTextFromFile(file: File): Promise<string> {
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  const buffer = Buffer.from(await file.arrayBuffer());
 
   if (file.type === "application/pdf") {
-    const data = await pdf(fileBuffer);
+    const data = await pdf(buffer);
     return data.text;
   }
 
@@ -105,31 +118,73 @@ async function extractTextFromFile(file: File): Promise<string> {
     file.type ===
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
-    const result = await mammoth.extractRawText({ buffer: fileBuffer });
+    const result = await mammoth.extractRawText({ buffer });
     return result.value;
   }
 
   if (file.type === "application/msword") {
-    console.warn("Parsing .doc file as plain text (best-effort).");
-    return fileBuffer.toString("utf-8");
+    return buffer.toString("utf-8");
   }
 
-  throw new Error("Unsupported file type. Only PDF or DOCX/DOC are allowed.");
+  throw new Error("Unsupported file type. Only PDF or DOCX/DOC allowed.");
 }
 
-// --- 🤖 Generate AI Response ---
+// ===================================================================
+// 🤖 AI GENERATION WITH AUTO-MODEL FAILOVER
+// ===================================================================
 async function generateAIContent(prompt: string) {
-  try {
-    const result = await model.generateContent(prompt);
-    const jsonText = result.response.text();
-    return JSON.parse(jsonText);
-  } catch (err) {
-    console.error("AI Generation Error:", err);
-    throw new Error("Failed to get valid JSON from Gemini model.");
+  const maxRetriesPerModel = 2;
+
+  for (const modelName of MODEL_FAILOVER_LIST) {
+    console.log(`🔄 Trying model: ${modelName}`);
+
+    const model = getModel(modelName);
+
+    for (let attempt = 1; attempt <= maxRetriesPerModel; attempt++) {
+      try {
+        const result = await model.generateContent({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+        });
+
+        const rawText = result.response.text();
+        const cleanedJSON = extractJSON(rawText);
+
+        console.log(`✅ Success using ${modelName}`);
+        return JSON.parse(cleanedJSON);
+      } catch (err: any) {
+        console.error(
+          `❌ Model ${modelName} failed (Attempt ${attempt}/${maxRetriesPerModel}):`, err
+        );
+
+        const retryable = [429, 500, 503].includes(err?.status);
+
+        if (retryable && attempt < maxRetriesPerModel) {
+          await new Promise((r) => setTimeout(r, 1000 * attempt));
+          continue;
+        }
+
+        break; // move to next model
+      }
+    }
+
+    console.log(`⚠️ Switching model due to failure: ${modelName}`);
   }
+
+  throw new Error("All Gemini models failed after failover attempts.");
 }
 
-// --- 🧩 Normalize any AI output into Type 2 format ---
+// ===================================================================
+// 🔧 Extract JSON safely
+// ===================================================================
+function extractJSON(text: string): string {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("Gemini did not return valid JSON.");
+  return match[0];
+}
+
+// ===================================================================
+// 🧩 Normalize output
+// ===================================================================
 function normalizeToType2(aiResponse: any) {
   const output: { questions: { question: string; type: string }[] } = {
     questions: [],
@@ -137,26 +192,20 @@ function normalizeToType2(aiResponse: any) {
 
   if (!aiResponse) return output;
 
-  // Case A: Already Type 2 format
   if (Array.isArray(aiResponse.questions)) {
-    output.questions = aiResponse.questions
-      .filter((q) => q.question && q.type)
-      .map((q) => ({
-        question: String(q.question).trim(),
-        type: String(q.type).trim(),
-      }));
+    output.questions = aiResponse.questions.map((q) => ({
+      question: String(q.question).trim(),
+      type: String(q.type).trim(),
+    }));
     return output;
   }
 
-  // Case B: Old grouped format
   if (typeof aiResponse.questions === "object") {
     Object.entries(aiResponse.questions).forEach(([type, list]) => {
       if (Array.isArray(list)) {
-        list.forEach((q) => {
-          if (typeof q === "string" && q.trim()) {
-            output.questions.push({ question: q.trim(), type });
-          }
-        });
+        list.forEach((q) =>
+          output.questions.push({ question: q.trim(), type })
+        );
       }
     });
   }
@@ -165,65 +214,53 @@ function normalizeToType2(aiResponse: any) {
 }
 
 // ===================================================================
-// PROMPT ENGINEERING
+// 🧠 PROMPT ENGINEERING
 // ===================================================================
-
 function buildGenerationPrompt(
   jobPosition: string,
   jobDescription: string,
   interviewDuration: string,
   interviewType: string[],
   experienceLevel: string
-): string {
-  const typesString = interviewType.join(", ");
+) {
+  const types = interviewType.join(", ");
 
-  let questionCountRange = "5–7";
-  if (interviewDuration.includes("5")) questionCountRange = "3–5";
-  else if (interviewDuration.includes("15")) questionCountRange = "6–10";
-  else if (interviewDuration.includes("30")) questionCountRange = "11–15";
-  else if (interviewDuration.includes("45")) questionCountRange = "16–20";
-  else if (interviewDuration.includes("60")) questionCountRange = "21–25";
+  let count = "5–7";
+  if (interviewDuration.includes("5")) count = "3–5";
+  if (interviewDuration.includes("15")) count = "6–10";
+  if (interviewDuration.includes("30")) count = "11–15";
+  if (interviewDuration.includes("45")) count = "16–20";
+  if (interviewDuration.includes("60")) count = "21–25";
 
-  const experienceGuidelines = {
-    Junior:
-      "Focus on basic conceptual understanding and simple problem-solving.",
-    Mid:
-      "Include scenario-based questions testing applied knowledge and debugging.",
-    Senior:
-      "Include advanced, design-level questions that assess architecture and leadership.",
+  const expGuide: any = {
+    Junior: "Ask basic conceptual questions.",
+    Mid: "Ask applied knowledge & debugging.",
+    Senior: "Ask architecture, leadership & system design.",
   };
 
-  const levelGuideline =
-    experienceGuidelines[experienceLevel as keyof typeof experienceGuidelines] ||
-    "Generate questions relevant to the experience level.";
-
   return `
-You are an expert AI interviewer that generates professional interview questions.
+You are an expert AI interviewer.
 
 Job Role: ${jobPosition}
-Experience Level: ${experienceLevel}
-Job Description: ${jobDescription}
-Interview Duration: ${interviewDuration}
-Requested Question Types: ${typesString}
+Experience: ${experienceLevel}
+Description: ${jobDescription}
+Duration: ${interviewDuration}
+Question Types: ${types}
 
-Guidelines:
-1. Generate approximately ${questionCountRange} unique, high-quality questions.
-2. Each question must include both "question" and its "type".
-3. The "type" value must be exactly one of: ${typesString}.
-4. Align questions with the specified experience level:
-   ${levelGuideline}
-5. Avoid redundancy and irrelevant questions.
-6. Respond ONLY with pure JSON in this structure:
+Rules:
+1. Generate ${count} high-quality questions.
+2. Return ONLY JSON.
+3. Each item must include "question" and "type".
+4. Type must be one of: ${types}.
+5. Use experience level: ${expGuide[experienceLevel]}
 
+JSON format:
 {
   "questions": [
-    { "question": "string", "type": "string" },
     { "question": "string", "type": "string" }
   ]
 }
-
-Do NOT include any explanations or commentary.
-  `;
+`;
 }
 
 function buildReviewPrompt(
@@ -231,33 +268,32 @@ function buildReviewPrompt(
   jobPosition: string,
   jobDescription: string,
   interviewTypes: string[]
-): string {
-  const typesString = interviewTypes.join(", ");
+) {
+  const types = interviewTypes.join(", ");
 
   return `
-You are an expert recruitment assistant for an AI interview platform.
-Analyze and categorize questions found in the provided document.
+You are an expert recruitment assistant.
 
-Job Role: ${jobPosition}
-Job Description: ${jobDescription}
-Categories: ${typesString}
+Extract interview questions from this document and categorize them.
 
-Document Text:
+Document:
 ---
 ${fileText}
 ---
 
 Rules:
-1. Identify all valid interview questions.
-2. Assign each one a "type" from: ${typesString}.
-3. Exclude duplicates or irrelevant content.
-4. Respond ONLY with JSON in this format:
+1. Only valid interview questions.
+2. No duplicates.
+3. Each item contains "question" and "type".
+4. JSON only.
 
+Types: ${types}
+
+JSON Response:
 {
   "questions": [
-    { "question": "string", "type": "string" },
     { "question": "string", "type": "string" }
   ]
 }
-  `;
+`;
 }
