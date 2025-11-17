@@ -8,13 +8,13 @@ import { authClient } from "@/lib/auth-client";
 export const Loginbuttons = () => {
   const signInWithGithub = async () =>
     await authClient.signIn.social({
-      callbackURL: "/home",
+      callbackURL: "/dashboard",
       provider: "github",
     });
 
   const signInWithGoogle = async () =>
     await authClient.signIn.social({
-      callbackURL: "/home",
+      callbackURL: "/dashboard",
       provider: "google",
     });
 

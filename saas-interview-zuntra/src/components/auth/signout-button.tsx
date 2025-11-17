@@ -14,7 +14,7 @@ export const SignOutButton = () => {
       },
     });
   return (
-    <Button onClick={signout} variant="outline">
+    <Button onClick={signout} variant="outline" className="transition-all duration-200 hover:pointer hover:bg-blue-500 hover:text-white border border-blue-500">
       Sign Out
     </Button>
   );

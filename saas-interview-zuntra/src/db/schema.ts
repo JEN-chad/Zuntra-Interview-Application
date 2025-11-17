@@ -5,6 +5,7 @@ import {
   integer,
   pgEnum,
   timestamp,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["admin", "client"]);
@@ -59,4 +60,30 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at"),
+});
+
+export const interview = pgTable("interview", {
+  id: text("id").primaryKey(),
+  
+  // Recruiter ID
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(), // ✅ use defaultNow() for consistency
+  
+  jobPosition: text("job_position"),
+  jobDescription: text("job_description"),
+  duration: text("duration"), // Kept as text (varchar equivalent)
+  type: text("type").array(),
+  experienceLevel: text("experience_level"),
+  
+  // Stores list of generated questions
+  questionList: jsonb("question_list"),
+  
+  // Resume score as integer
+  resumeScore: integer("resume_score"),
+  
+  // Reference to candidate email
+  userEmail: text("user_email").references(() => user.email, { onDelete: "cascade" }),
 });
