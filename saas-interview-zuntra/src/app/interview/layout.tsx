@@ -7,7 +7,6 @@ export default function InterviewLayout({
 }>) {
   return (
     <div className="bg-gray-200 h-screen">
-          <InterviewHeader />
           {children}
     </div>
   );
