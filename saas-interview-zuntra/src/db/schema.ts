@@ -71,7 +71,7 @@ export const interview = pgTable("interview", {
     .references(() => user.id, { onDelete: "cascade" }),
   
   createdAt: timestamp("created_at").notNull().defaultNow(), // ✅ use defaultNow() for consistency
-  
+ 
   jobPosition: text("job_position"),
   jobDescription: text("job_description"),
   duration: text("duration"), // Kept as text (varchar equivalent)
