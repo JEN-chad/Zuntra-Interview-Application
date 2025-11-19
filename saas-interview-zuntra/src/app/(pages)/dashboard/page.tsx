@@ -10,7 +10,7 @@ const Dashboard = async () => {
   return (
     <div>
       {/* <WelcomeContainer /> */}
-      <h2 className="text-2xl font-semibold my-4">Dashboard</h2>
+      {/* <h2 className="text-2xl font-semibold my-4">Dashboard</h2> */}
       <CreateOptions />
       <LatestInterviewsList />
     </div>

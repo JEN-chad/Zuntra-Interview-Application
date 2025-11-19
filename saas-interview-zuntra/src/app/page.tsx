@@ -1,4 +1,9 @@
 import React from "react";
+// Import authentication utilities from the reference code structure
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import Link from "next/link"; // Use Link for client-side routing
+
 import {
   BrainCircuit,
   ArrowRight,
@@ -17,9 +22,17 @@ import {
   Check
 } from "lucide-react";
 
-const LandingPage = () => {
-  // Standard HTML anchor tags are used here for navigation in this standalone preview.
-  // In a full Next.js app, you would switch these back to <Link> components.
+// 1. Convert to an 'async' function to make it a Next.js Server Component
+const LandingPage = async () => {
+  // 2. Implement the session check and redirection logic
+  const session = await getSession();
+
+  if (session) {
+    redirect("/dashboard");
+  }
+
+  // Standard HTML anchor tags are now replaced with Next.js <Link> components
+  // for all 'Get Started' and 'Log in' buttons.
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-100">
@@ -56,16 +69,18 @@ const LandingPage = () => {
               </a>
             </div>
             <div className="flex space-x-4 items-center">
-              <a href="/login">
+              {/* Login Button - Changed <a> to <Link> */}
+              <Link href="/login">
                 <button className="hidden md:flex text-slate-600 hover:text-blue-600 font-medium px-4 py-2 transition hover:bg-slate-100 rounded-md">
                   Log in
                 </button>
-              </a>
-              <a href="/register">
+              </Link>
+              {/* Get Started Button - Changed <a> to <Link> */}
+              <Link href="/login">
                 <button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 px-5 py-2 rounded-lg font-medium transition">
                   Get Started
                 </button>
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -95,11 +110,12 @@ const LandingPage = () => {
                 evaluation — all in one modern platform. Hire the top 1% faster.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <a href="/register">
+                {/* Get Started Free Button - Changed <a> to <Link> */}
+                <Link href="/login">
                   <button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-xl font-semibold text-lg transition shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2">
                     Get Started Free <ArrowRight className="w-5 h-5" />
                   </button>
-                </a>
+                </Link>
                 <button className="w-full sm:w-auto bg-white border-2 border-slate-200 hover:border-blue-200 hover:bg-blue-50 text-slate-700 hover:text-blue-700 px-8 py-3.5 rounded-xl font-semibold text-lg transition flex items-center justify-center gap-2">
                   <PlayCircle className="w-5 h-5" /> Try Demo
                 </button>
@@ -350,7 +366,7 @@ const LandingPage = () => {
               How HireMindAI works
             </h3>
           </div>
-
+          
           <div className="grid md:grid-cols-3 gap-8 items-start relative">
             {/* Connector Line (Desktop) */}
             <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-slate-200 via-blue-200 to-slate-200 z-0"></div>
@@ -547,9 +563,12 @@ const LandingPage = () => {
               <p className="text-sm text-slate-500 mb-6">
                 For solo recruiters testing the waters.
               </p>
-              <button className="w-full mb-6 border border-blue-600 text-blue-600 hover:bg-blue-50 font-medium px-4 py-2 rounded-md transition">
-                Get Started
-              </button>
+              {/* Button - Changed <a> to <Link> */}
+              <Link href="/login">
+                <button className="w-full mb-6 border border-blue-600 text-blue-600 hover:bg-blue-50 font-medium px-4 py-2 rounded-md transition">
+                  Get Started
+                </button>
+              </Link>
               <ul className="space-y-3 text-sm text-slate-600">
                 <li className="flex gap-2">
                   <Check className="w-5 h-5 text-blue-600" /> 1 Active Job
@@ -577,9 +596,12 @@ const LandingPage = () => {
               <p className="text-sm text-slate-500 mb-6">
                 For growing teams hiring regularly.
               </p>
-              <button className="w-full mb-6 bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 font-medium px-4 py-2 rounded-md transition">
-                Try Pro Free
-              </button>
+              {/* Button - Changed <a> to <Link> */}
+              <Link href="/login">
+                <button className="w-full mb-6 bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 font-medium px-4 py-2 rounded-md transition">
+                  Try Pro Free
+                </button>
+              </Link>
               <ul className="space-y-3 text-sm text-slate-600">
                 <li className="flex gap-2">
                   <Check className="w-5 h-5 text-blue-600" /> 5 Active Jobs
@@ -609,9 +631,12 @@ const LandingPage = () => {
               <p className="text-sm text-slate-500 mb-6">
                 For large orgs with high volume.
               </p>
-              <button className="w-full mb-6 border border-blue-600 text-blue-600 hover:bg-blue-50 font-medium px-4 py-2 rounded-md transition">
-                Contact Sales
-              </button>
+              {/* Button - Changed <a> to <Link> */}
+              <Link href="/login">
+                <button className="w-full mb-6 border border-blue-600 text-blue-600 hover:bg-blue-50 font-medium px-4 py-2 rounded-md transition">
+                  Contact Sales
+                </button>
+              </Link>
               <ul className="space-y-3 text-sm text-slate-600">
                 <li className="flex gap-2">
                   <Check className="w-5 h-5 text-blue-600" /> Unlimited Jobs
@@ -649,9 +674,12 @@ const LandingPage = () => {
               faster and fairer.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4 relative z-10">
-              <button className="bg-white text-blue-600 font-bold text-lg hover:bg-blue-50 h-auto py-3.5 px-8 rounded-xl transition">
-                Get Started Free
-              </button>
+              {/* Get Started Free Button - Changed <a> to <Link> */}
+              <Link href="/login">
+                <button className="bg-white text-blue-600 font-bold text-lg hover:bg-blue-50 h-auto py-3.5 px-8 rounded-xl transition">
+                  Get Started Free
+                </button>
+              </Link>
               <button className="bg-blue-700 border border-blue-500 text-white font-bold text-lg hover:bg-blue-800 h-auto py-3.5 px-8 rounded-xl transition">
                 Book a Demo
               </button>
