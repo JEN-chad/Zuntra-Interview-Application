@@ -2,21 +2,19 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { feedback, interview, resumeQuestions } from "@/db/schema";
+import { feedback, resumeQuestions } from "@/db/schema";
 import { randomUUID } from "crypto";
 import { VertexAI } from "@google-cloud/vertexai";
 import PDFParser from "pdf2json";
 
-// ---------------------------
-// PDF → TEXT Extractor
-// ---------------------------
+// ------------ PDF to TEXT ------------
 async function extractPdfText(buffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParser();
 
-    pdfParser.on("pdfParser_dataError", (err: any) => {
-      reject(err?.parserError ?? err);
-    });
+    pdfParser.on("pdfParser_dataError", (err: any) =>
+      reject(err?.parserError ?? err)
+    );
 
     pdfParser.on("pdfParser_dataReady", (data: any) => {
       let text = "";
@@ -34,9 +32,6 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
   });
 }
 
-// ---------------------------
-// MAIN POST HANDLER
-// ---------------------------
 export async function POST(req: Request) {
   try {
     const form = await req.formData();
@@ -45,74 +40,62 @@ export async function POST(req: Request) {
     const candidateIdRaw = form.get("candidateId") as string | null;
     const file = form.get("resume") as File | null;
 
-    console.log("Received:", {
-      interviewId,
-      candidateId: candidateIdRaw,
-      file: file?.name,
-    });
-
-    // Clean & validate candidateId
     const candidateId = candidateIdRaw?.trim();
-    if (!candidateId || candidateId === "undefined") {
+
+    // Validate IDs
+    if (!candidateId) {
       return NextResponse.json(
-        { error: "Invalid or missing candidateId" },
+        { error: "Missing candidateId" },
         { status: 400 }
       );
     }
 
     if (!interviewId) {
       return NextResponse.json(
-        { error: "interviewId missing" },
+        { error: "Missing interviewId" },
         { status: 400 }
       );
     }
 
     if (!file) {
       return NextResponse.json(
-        { error: "Resume file is required" },
+        { error: "Resume file missing" },
         { status: 400 }
       );
     }
 
-    // ---------------------------
-    // Extract resume text
-    // ---------------------------
+    // Convert PDF → text
     const buffer = Buffer.from(await file.arrayBuffer());
     const resumeText = await extractPdfText(buffer);
 
-    // ---------------------------
-    // Fetch interview/job data
-    // ---------------------------
+    // Fetch interview
     const job = await db.query.interview.findFirst({
       where: (i, { eq }) => eq(i.id, interviewId),
     });
 
     if (!job) {
-      return NextResponse.json(
-        { error: "Interview not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Interview not found" }, { status: 404 });
     }
 
-    // ---------------------------
-    // Gemini Resume Evaluation Prompt
-    // ---------------------------
+    // ------------ AI PROMPT ------------
     const prompt = `
-Return ONLY valid JSON. No markdown.
+Return ONLY JSON strictly like this:
 
 {
-  "overallScore": number,
-  "toneStyle": { "score": number, "strengths": [], "improvements": [] },
-  "content": { "score": number, "strengths": [], "improvements": [] },
-  "structure": { "score": number, "strengths": [], "improvements": [] },
-  "skills": { "score": number, "strengths": [], "improvements": [] },
-  "ats": { "score": number, "recommendedKeywords": [] }
+  "overallScore": 0.0,
+  "toneStyle": { "score": 0.0, "strengths": [], "improvements": [] },
+  "content": { "score": 0.0, "strengths": [], "improvements": [] },
+  "structure": { "score": 0.0, "strengths": [], "improvements": [] },
+  "skills": { "score": 0.0, "strengths": [], "improvements": [] },
+  "ats": { "score": 0.0, "recommendedKeywords": [] }
 }
 
-Job Title: ${job.jobPosition}
-Job Description: ${job.jobDescription}
+Scores MUST be between 0.0 and 1.0.
 
-Candidate Resume:
+Job Description:
+${job.jobDescription}
+
+Resume:
 ${resumeText}
 `;
 
@@ -129,45 +112,24 @@ ${resumeText}
       contents: [{ role: "user", parts: [{ text: prompt }] }],
     });
 
-    const raw = aiResult.response?.candidates?.[0]?.content?.parts?.[0]?.text;
+    let raw = aiResult.response?.candidates?.[0]?.content?.parts?.[0]?.text;
+    raw = raw?.replace(/```json/gi, "").replace(/```/g, "").trim();
 
-    if (!raw) {
-      return NextResponse.json(
-        { error: "Gemini returned empty response" },
-        { status: 500 }
-      );
-    }
-
-    const cleaned = raw
-      .replace(/```json/gi, "")
-      .replace(/```/g, "")
-      .trim();
-
-    let json;
+    let json: any = {};
     try {
-      json = JSON.parse(cleaned);
+      json = JSON.parse(raw);
     } catch (err) {
-      console.error("JSON Parse Error:", cleaned);
+      console.log("JSON Parse Error:", raw);
       return NextResponse.json(
-        { error: "Invalid JSON returned by Gemini", raw: cleaned },
+        { error: "Gemini returned invalid JSON", raw },
         { status: 500 }
       );
     }
 
-    // ---------------------------
-    // Generate 5 interview questions
-    // ---------------------------
+    // ------------ Generate 5 Questions ------------
     const questionPrompt = `
-Generate EXACTLY 5 interview questions based ONLY on this candidate's resume.
-Return ONLY JSON array:
-
-[
-  "question1",
-  "question2",
-  "question3",
-  "question4",
-  "question5"
-]
+Generate EXACTLY 5 interview questions based on this resume.
+Return ONLY a JSON array.
 
 Resume:
 ${resumeText}
@@ -177,68 +139,51 @@ ${resumeText}
       contents: [{ role: "user", parts: [{ text: questionPrompt }] }],
     });
 
-    let questionRaw =
+    let qRaw =
       questionResult.response?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
-    questionRaw = questionRaw
-      .replace(/```json/gi, "")
-      .replace(/```/g, "")
-      .trim();
+    qRaw = qRaw.replace(/```json/gi, "").replace(/```/g, "").trim();
 
     let parsedQuestions: string[] = [];
-
     try {
-      parsedQuestions = JSON.parse(questionRaw);
+      parsedQuestions = JSON.parse(qRaw);
     } catch (err) {
-      console.error("Question JSON Parse Error:", questionRaw);
+      console.log("Question JSON Parse Error:", qRaw);
       parsedQuestions = [];
     }
 
-    // Save questions in DB
+    // ------------ SAVE QUESTIONS (FIXED) ------------
     await db.insert(resumeQuestions).values({
       id: randomUUID(),
-      candidateId,
-      interviewId,
+      candidateId: candidateId!,   // FIXED
+      interviewId: interviewId!,   // FIXED
       questions: parsedQuestions,
     });
 
-    // ---------------------------
-    // Convert score floats → percentages
-    // ---------------------------
-    const toInt = (n: number) => Math.round(n * 100);
+    // ------------ FIX SCORE SCALING ------------
+    const scale = (n: number) => Math.round(Number(n) * 100);
 
-    const scores = {
-      overallScore: toInt(json.overallScore),
-      toneStyleScore: toInt(json.toneStyle.score),
-      contentScore: toInt(json.content.score),
-      structureScore: toInt(json.structure.score),
-      skillsScore: toInt(json.skills.score),
-      atsScore: toInt(json.ats.score ?? 0),
-    };
-
-    // ---------------------------
-    // Save Feedback into DB
-    // ---------------------------
     const feedbackId = randomUUID();
 
     await db.insert(feedback).values({
       id: feedbackId,
-      candidateId,
-      interviewId,
-      ...scores,
+      candidateId: candidateId!,  // FIXED
+      interviewId: interviewId!,  // FIXED
+      overallScore: scale(json.overallScore),
+      toneStyleScore: scale(json.toneStyle.score),
+      contentScore: scale(json.content.score),
+      structureScore: scale(json.structure.score),
+      skillsScore: scale(json.skills.score),
+      atsScore: scale(json.ats.score ?? 0),
       fullReport: json,
     });
 
     return NextResponse.json({
       success: true,
       feedbackId,
-      scores,
     });
-  } catch (error: any) {
-    console.error("Resume Analysis Error:", error);
-    return NextResponse.json(
-      { error: "Server error", details: String(error) },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.log("Resume API Error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
