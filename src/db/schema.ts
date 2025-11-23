@@ -120,6 +120,9 @@ export const emailVerification = pgTable(
     interviewId: text("interview_id")
       .notNull()
       .references(() => interview.id, { onDelete: "cascade" }),
+    
+    candidateId: text("candidate_id")
+    .references(() => candidate.id, { onDelete: "cascade" }),
 
     // 6-digit OTP
     otp: text("otp").notNull(),

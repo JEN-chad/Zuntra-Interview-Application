@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CheckCircle2, Briefcase } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 // ---------------------
 // LOADER COMPONENT
@@ -238,13 +239,20 @@ export default function InterviewUI() {
                 />
               </div>
 
-              <button
-                onClick={startVerification}
-                className="w-full bg-blue-600 text-white py-2.5 rounded-lg mt-5"
-                disabled={loading}
+             <button
+               onClick={startVerification}
+               className="w-full bg-blue-600 text-white py-2.5 rounded-lg mt-5 flex items-center justify-center gap-2"
+               disabled={loading}
               >
-                {loading ? "Processing…" : "Next →"}
-              </button>
+            {loading ? (
+             <>
+              <Loader2 className="animate-spin h-5 w-5" />
+                 Processing
+              </>
+              ) : (
+              "Next →"
+             )}
+             </button>
             </>
           )}
 
@@ -263,13 +271,23 @@ export default function InterviewUI() {
                 onChange={(e) => setOtp(e.target.value)}
               />
 
-              <button
-                onClick={verifyOtp}
-                className="w-full bg-blue-600 text-white py-2.5 rounded-lg mt-5"
-                disabled={loading}
+             <button
+               onClick={verifyOtp}
+               disabled={loading}
+               className={`w-full bg-blue-600 text-white py-2.5 rounded-lg mt-5
+                flex items-center justify-center gap-2 font-medium transition
+                disabled:opacity-60 disabled:cursor-not-allowed hover:bg-blue-700`}
               >
-                {loading ? "Verifying…" : "Verify OTP →"}
-              </button>
+             {loading ? (
+                 <>
+               <Loader2 className="animate-spin h-5 w-5" />
+                Verifying…
+               </>
+              ) : (
+             "Verify OTP →"
+              )}
+             </button>
+
             </>
           )}
 

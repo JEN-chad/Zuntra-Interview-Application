@@ -1,0 +1,2 @@
+ALTER TABLE "email_verification" ADD COLUMN "candidate_id" text;--> statement-breakpoint
+ALTER TABLE "email_verification" ADD CONSTRAINT "email_verification_candidate_id_candidate_id_fk" FOREIGN KEY ("candidate_id") REFERENCES "public"."candidate"("id") ON DELETE cascade ON UPDATE no action;

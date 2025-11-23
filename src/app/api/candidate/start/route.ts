@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "This email is already registered for this interview. Please continue or use a different email.",
+            "This email is already registered for this interview. Try logging in or use a different email.",
         },
         { status: 409 }
       );
@@ -38,11 +38,10 @@ export async function POST(req: Request) {
 
     // 2️⃣ Generate OTP (6 digits)
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min expiry
-
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     const id = randomUUID();
 
-    // 3️⃣ Insert/Update verification record
+    // 3️⃣ Insert or update OTP in the email_verification table
     await db
       .insert(emailVerification)
       .values({
@@ -51,22 +50,27 @@ export async function POST(req: Request) {
         interviewId,
         otp,
         expiresAt,
+        verified: false,
       })
       .onConflictDoUpdate({
         target: [emailVerification.email, emailVerification.interviewId],
-        set: { otp, expiresAt, verified: false },
+        set: {
+          otp,
+          expiresAt,
+          verified: false,
+        },
       });
 
-    // 4️⃣ Send OTP email
+    // 4️⃣ Send OTP email via Brevo
     try {
       await sendOtpEmail(email, otp);
-    } catch (emailErr) {
-      console.error("Email sending failed:", emailErr);
+    } catch (err) {
+      console.error("Brevo Email Sending Failed:", err);
 
       return NextResponse.json(
         {
           error:
-            "Failed to send OTP email. Please try again or check email configuration.",
+            "Failed to send OTP email. Check your email settings or try again.",
         },
         { status: 500 }
       );
@@ -75,13 +79,13 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       verificationId: id,
-      message: "OTP sent to email.",
+      message: "OTP has been sent to your email address.",
     });
   } catch (err) {
-    console.error("Start verification error:", err);
+    console.error("Start Verification Error:", err);
 
     return NextResponse.json(
-      { error: "Failed to start email verification." },
+      { error: "Failed to start email verification. Try again later." },
       { status: 500 }
     );
   }

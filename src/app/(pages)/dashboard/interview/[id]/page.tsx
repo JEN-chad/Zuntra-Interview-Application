@@ -37,7 +37,7 @@ type PageProps = {
 };
 
 export default async function InterviewDetails({ params }: PageProps) {
-  const interviewId = params.id;
+  const interviewId = await params.id;
 
   // keep exact same semantics as your original reference
   const { interview, candidates } = await getInterviewDetails(interviewId);

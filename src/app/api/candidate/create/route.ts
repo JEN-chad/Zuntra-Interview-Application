@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { candidate } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export async function POST(req: Request) {
@@ -14,6 +15,24 @@ export async function POST(req: Request) {
       );
     }
 
+    // 1️⃣ Check if candidate already exists for this interview
+    const existing = await db.query.candidate.findFirst({
+      where: and(eq(candidate.email, email), eq(candidate.interviewId, interviewId)),
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        {
+          success: true,
+          existing: true,
+          candidateId: existing.id,
+          message: "Candidate already exists for this interview",
+        },
+        { status: 200 }
+      );
+    }
+
+    // 2️⃣ Create new candidate
     const id = randomUUID();
 
     await db.insert(candidate).values({
@@ -24,7 +43,11 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(
-      { success: true, candidateId: id },
+      {
+        success: true,
+        existing: false,
+        candidateId: id,
+      },
       { status: 200 }
     );
   } catch (err) {
