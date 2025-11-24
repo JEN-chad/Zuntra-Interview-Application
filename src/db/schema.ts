@@ -149,7 +149,7 @@ export const feedback = pgTable("feedback", {
   candidateId: text("candidate_id")
     .notNull()
     .references(() => candidate.id, { onDelete: "cascade" }),
-    
+    // Just to verify
 
   interviewId: text("interview_id")
     .notNull()
