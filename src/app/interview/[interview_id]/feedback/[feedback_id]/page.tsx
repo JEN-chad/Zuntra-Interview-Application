@@ -377,7 +377,7 @@ export default function FeedbackPage() {
                     <XCircle size={18} /> Cutoff Missed
                   </p>
                   <p className="text-xs text-rose-600">
-                    ATS Score below {cutoff}% required.
+                    ATS Score above {cutoff}% required.
                   </p>
                 </div>
               )}

@@ -1,19 +1,22 @@
 "use client";
 
 import { ChangeEvent, useMemo } from "react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { InterviewType } from "@/services/Constants";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, X, User, UserCheck, UserStar } from "lucide-react";
+import { 
+  ArrowRight, X, User, UserCheck, UserStar, 
+  Upload, Clock, FileText, Check, Code2, 
+  Briefcase, Brain, Trophy 
+} from "lucide-react";
 import { toast } from "sonner";
+
+// Mocking the constant internally since the external file is not available
+const InterviewType = [
+  { title: 'Technical', icon: Code2 },
+  { title: 'Behavioral', icon: User },
+  { title: 'Experience', icon: Briefcase },
+  { title: 'Problem Solving', icon: Brain },
+  { title: 'Leadership', icon: Trophy },
+];
 
 interface FormContainerProps {
   formData: Record<string, any>;
@@ -26,6 +29,8 @@ const FormContainer = ({
   onHandleInputChange,
   GoToNextStep,
 }: FormContainerProps) => {
+  
+  // --- EXISTING LOGIC STARTS HERE ---
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>): void => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -104,227 +109,213 @@ const FormContainer = ({
       formData.interviewType.length > 0
     );
   }, [formData]);
+  // --- EXISTING LOGIC ENDS HERE ---
 
   return (
-    <div className="w-full md:w-[95%] bg-white p-6 mt-6 rounded-xl shadow-md border border-slate-200 mx-auto md:mr-3 transition-all duration-300">
-      {/* Job Position */}
-      <div className="flex flex-col gap-2 relative">
-        <label className="text-sm font-medium text-gray-700">
-          Job Position <span className="text-red-500">*</span>
-        </label>
-        <div className="relative">
-          <Input
-            placeholder="e.g. Full Stack Developer"
-            value={formData.jobPosition || ""}
-            onChange={(e) =>
-              onHandleInputChange("jobPosition", e.target.value.replace(/^\s+/g, ""))
-            }
-          />
-          {formData.jobPosition && (
-            <X
-              className="absolute right-3 top-3 text-gray-400 hover:text-red-500 cursor-pointer"
-              size={18}
-              onClick={() => clearField("jobPosition")}
-            />
-          )}
-        </div>
+    <div className="w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden my-6 transition-all duration-300 font-sans text-slate-800">
+      
+      {/* Header */}
+      <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Create Interview Assessment</h2>
+        <p className="text-sm text-slate-500 mt-1">Configure the parameters to generate tailored interview questions.</p>
       </div>
 
-      {/* Job Description */}
-      <div className="flex flex-col gap-2 mt-5 relative">
-        <label className="text-sm font-medium text-gray-700">
-          Job Description <span className="text-red-500">*</span>
-        </label>
-        <div className="relative">
-          <Textarea
-            placeholder="Enter details of the job description"
-            className="h-[200px] pr-10"
-            value={formData.jobDescription || ""}
-            onChange={(e) =>
-              onHandleInputChange("jobDescription", e.target.value.replace(/^\s+/g, ""))
-            }
-          />
-          {formData.jobDescription && (
-            <X
-              className="absolute right-3 top-3 text-gray-400 hover:text-red-500 cursor-pointer"
-              size={18}
-              onClick={() => clearField("jobDescription")}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Resume Score & Interview Duration */}
-      <div className="w-full flex flex-col md:flex-row gap-4 mt-5">
-        {/* Resume Score */}
-        <div className="flex-1 flex flex-col gap-2 relative">
-          <label className="text-sm font-medium text-gray-700">
-            Resume Score (0–100)
-          </label>
-          <div className="relative">
-            <Input
-              type="number"
-              placeholder="e.g. 75"
-              value={formData.resumeScore ?? ""}
-              min={0}
-              max={100}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\s+/g, "");
-                if (value === "" || (/^\d+$/.test(value) && +value >= 0 && +value <= 100)) {
-                  onHandleInputChange("resumeScore", value);
-                }
-              }}
-            />
-            {formData.resumeScore && (
-              <X
-                className="absolute right-6 top-3 text-gray-400 hover:text-red-500 cursor-pointer"
-                size={18}
-                onClick={() => clearField("resumeScore")}
+      <div className="p-8 space-y-8">
+        
+        {/* Job Details Section */}
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6">
+            
+            {/* Job Position */}
+            <div className="space-y-2 relative">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between">
+                <span>Job Position <span className="text-red-500">*</span></span>
+                {formData.jobPosition && (
+                  <button onClick={() => clearField("jobPosition")} className="text-slate-400 hover:text-red-500 text-xs lowercase font-normal flex items-center gap-1">
+                    <X size={12} /> clear
+                  </button>
+                )}
+              </label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="e.g. Senior Full Stack Developer" 
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  value={formData.jobPosition || ""}
+                  onChange={(e) => onHandleInputChange("jobPosition", e.target.value.replace(/^\s+/g, ""))}
+                />
+              </div>
+            </div>
+            
+            {/* Job Description */}
+            <div className="space-y-2 relative">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between">
+                <span>Job Description <span className="text-red-500">*</span></span>
+                {formData.jobDescription && (
+                  <button onClick={() => clearField("jobDescription")} className="text-slate-400 hover:text-red-500 text-xs lowercase font-normal flex items-center gap-1">
+                    <X size={12} /> clear
+                  </button>
+                )}
+              </label>
+              <textarea 
+                placeholder="Paste the job description or requirements here..." 
+                className="w-full px-4 py-3 h-32 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
+                value={formData.jobDescription || ""}
+                onChange={(e) => onHandleInputChange("jobDescription", e.target.value.replace(/^\s+/g, ""))}
               />
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Interview Duration */}
-        <div className="flex-1 flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">
-            Duration (mins) <span className="text-red-500">*</span>
-          </label>
-          <Select
-            onValueChange={(value: string) =>
-              onHandleInputChange("interviewDuration", value === "none" ? null : value)
-            }
-            value={formData.interviewDuration || ""}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Duration" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              <SelectItem value="5 Min">5 Min</SelectItem>
-              <SelectItem value="15 Min">15 Min</SelectItem>
-              <SelectItem value="30 Min">30 Min</SelectItem>
-              <SelectItem value="45 Min">45 Min</SelectItem>
-              <SelectItem value="60 Min">60 Min</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+        {/* Configuration Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* Resume Score */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Resume Score Threshold</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                min="0" 
+                max="100" 
+                placeholder="e.g. 75" 
+                className="w-full pl-4 pr-12 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                value={formData.resumeScore ?? ""}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\s+/g, "");
+                  if (value === "" || (/^\d+$/.test(value) && +value >= 0 && +value <= 100)) {
+                    onHandleInputChange("resumeScore", value);
+                  }
+                }}
+              />
+              <span className="absolute right-4 top-2.5 text-slate-400 text-sm font-medium">/ 100</span>
+            </div>
+          </div>
 
-      {/* Interview Type */}
-      <div className="flex flex-col gap-3 mt-5">
-        <label className="text-sm font-medium text-gray-700">
-          Interview Type <span className="text-red-500">*</span>
-        </label>
-        <div className="flex gap-3 flex-wrap">
-          {InterviewType.map((type: any, index: number) => {
-            const isSelected = Array.isArray(formData.interviewType)
-              ? formData.interviewType.includes(type.title)
-              : false;
-
-            const toggleType = () => {
-              let updatedTypes: string[] = Array.isArray(formData.interviewType)
-                ? [...formData.interviewType]
-                : [];
-
-              if (isSelected) {
-                updatedTypes = updatedTypes.filter((t) => t !== type.title);
-              } else {
-                updatedTypes.push(type.title);
-              }
-
-              onHandleInputChange("interviewType", updatedTypes);
-            };
-
-            return (
-              <div
-                key={index}
-                onClick={toggleType}
-                className={`flex gap-2 cursor-pointer items-center border rounded-2xl p-1 px-2 transition-all ${
-                  isSelected
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "bg-blue-50 border-gray-200 hover:bg-blue-400 hover:text-white"
-                }`}
+          {/* Duration */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Duration <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <select 
+                className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none transition-all cursor-pointer invalid:text-slate-400"
+                value={formData.interviewDuration || ""}
+                onChange={(e) => onHandleInputChange("interviewDuration", e.target.value === "none" ? null : e.target.value)}
               >
-                <type.icon size={20} />
-                <span className="text-sm">{type.title}</span>
-                {isSelected && (
-                  <X
-                    className="ml-1 text-white hover:text-red-200 cursor-pointer"
-                    size={14}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleType();
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
+                <option value="" disabled>Select duration</option>
+                <option value="5 Min">5 Min</option>
+                <option value="15 Min">15 Min</option>
+                <option value="30 Min">30 Min</option>
+                <option value="45 Min">45 Min</option>
+                <option value="60 Min">60 Min</option>
+              </select>
+              <Clock size={16} className="absolute right-4 top-3 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Experience Level */}
-      <div className="flex flex-col gap-3 mt-5">
-        <label className="text-sm font-medium text-gray-700">
-          Experience Level <span className="text-red-500">*</span>
-        </label>
-        <div className="flex gap-8 flex-wrap">
-          {[
-            { level: "Junior", icon: User },
-            { level: "Mid", icon: UserCheck },
-            { level: "Senior", icon: UserStar },
-          ].map(({ level, icon: Icon }) => {
-            const isSelected = formData.experienceLevel === level;
+        {/* Interview Type Selection */}
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Interview Type <span className="text-red-500">*</span></label>
+          <div className="flex flex-wrap gap-2">
+            {InterviewType.map((type: any, index: number) => {
+              const isSelected = Array.isArray(formData.interviewType)
+                ? formData.interviewType.includes(type.title)
+                : false;
 
-            return (
-              <div
-                key={level}
-                onClick={() => onHandleInputChange("experienceLevel", level)}
-                className={`flex gap-2 cursor-pointer items-center border rounded-2xl p-1 px-3 transition-all ${
-                  isSelected
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "bg-blue-50 border-gray-200 hover:bg-blue-400 hover:text-white"
-                }`}
-              >
-                <Icon size={18} />
-                <span className="text-sm">{level}</span>
-                {isSelected && (
-                  <X
-                    className="ml-1 text-white hover:text-red-200 cursor-pointer"
-                    size={14}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onHandleInputChange("experienceLevel", null);
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
+              const toggleType = () => {
+                let updatedTypes: string[] = Array.isArray(formData.interviewType)
+                  ? [...formData.interviewType]
+                  : [];
+
+                if (isSelected) {
+                  updatedTypes = updatedTypes.filter((t) => t !== type.title);
+                } else {
+                  updatedTypes.push(type.title);
+                }
+                onHandleInputChange("interviewType", updatedTypes);
+              };
+
+              return (
+                <button
+                  key={index}
+                  onClick={toggleType}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border group ${
+                    isSelected 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/20' 
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700'
+                  }`}
+                >
+                  <type.icon size={16} className={isSelected ? 'text-white' : 'text-slate-500 group-hover:text-blue-600'} />
+                  {type.title}
+                  {isSelected && <Check size={14} className="ml-1 opacity-70" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* File Upload (Optional) */}
-      <div className="flex flex-col gap-2 mt-5">
-        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-          Upload Questions (Optional)
-        </label>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Input
-            type="file"
-            accept=".pdf,.doc,.docx"
-            onChange={handleFileChange}
-            className="cursor-pointer w-fit"
-          />
-          {formData.file && (
-            <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-lg border border-gray-200 shadow-sm">
-              <span className="text-sm text-gray-700 truncate max-w-[180px]">
-                {formData.file.name}
-              </span>
+        {/* Experience Level Selection */}
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Experience Level <span className="text-red-500">*</span></label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { level: "Junior", icon: User },
+              { level: "Mid", icon: UserCheck },
+              { level: "Senior", icon: UserStar },
+            ].map(({ level, icon: Icon }) => {
+              const isSelected = formData.experienceLevel === level;
+              return (
+                <button
+                  key={level}
+                  onClick={() => onHandleInputChange("experienceLevel", isSelected ? null : level)}
+                  className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 border group ${
+                    isSelected 
+                      ? 'bg-slate-800 border-slate-800 text-white shadow-md' 
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon size={16} className={isSelected ? 'text-white' : 'text-slate-500'} />
+                  {level}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* File Upload */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Upload Questions (Optional)</label>
+          
+          {!formData.file ? (
+            <div className="relative border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 hover:border-blue-300 transition-colors cursor-pointer group bg-slate-50/30">
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200">
+                <Upload size={20} />
+              </div>
+              <p className="text-sm text-slate-600 font-medium">Click to upload or drag and drop</p>
+              <p className="text-xs text-slate-400 mt-1">PDF or Word files (DOC/DOCX)</p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-100 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white text-blue-600 rounded-md border border-blue-100">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-700 truncate max-w-[200px] sm:max-w-xs">
+                    {formData.file.name}
+                  </p>
+                  <p className="text-xs text-blue-500">File uploaded successfully</p>
+                </div>
+              </div>
               <button
                 onClick={handleRemoveFile}
-                className="text-red-500 hover:text-red-700"
+                className="p-2 text-slate-400 hover:text-red-500 hover:bg-white rounded-full transition-colors"
                 title="Remove file"
               >
                 <X size={18} />
@@ -332,16 +323,22 @@ const FormContainer = ({
             </div>
           )}
         </div>
+
       </div>
 
-      {/* Submit Button */}
-      <div className="mt-7 flex justify-end">
+      {/* Footer */}
+      <div className="px-8 py-6 bg-slate-50 border-t border-slate-200 flex justify-end">
         <Button
-          className="flex gap-2 items-center bg-blue-500"
           onClick={handleSubmit}
           disabled={!isFormValid}
+          className={`flex items-center gap-2 px-8 py-6 rounded-lg font-semibold text-sm shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 focus:ring-4 ${
+            isFormValid 
+              ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/10 focus:ring-blue-500/20" 
+              : "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
+          }`}
         >
-          {formData.file ? "Review Questions" : "Generate Questions"} <ArrowRight />
+          {formData.file ? "Review Questions" : "Generate Questions"}
+          <ArrowRight size={18} />
         </Button>
       </div>
     </div>

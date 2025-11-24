@@ -60,7 +60,7 @@ const CreateInterview: React.FC<CreateInterviewProps> = ({ session }) => {
         <h1 className="text-2xl font-bold">Create New Interview</h1>
       </div>
 
-      <Progress value={step * 33.33} className="my-4" />
+      <Progress value={step * 33.33} className="my-4 [&>div]:bg-blue-600" />
 
       {step === 1 ? (
         <FormContainer

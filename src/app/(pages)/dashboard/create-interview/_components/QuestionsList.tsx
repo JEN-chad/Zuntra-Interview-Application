@@ -1,9 +1,19 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, RefreshCcw, ArrowRight } from "lucide-react";
+import {
+  Loader2,
+  RefreshCcw,
+  ArrowRight,
+  Target,
+  Copy,
+  Check,
+  Code2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ExecutiveLoader } from "./ExecutiveLoader";
+
 
 interface SessionUser {
   id: string;
@@ -23,7 +33,7 @@ interface QuestionItem {
 interface QuestionsListProps {
   formData: Record<string, any>;
   session: Session;
-  onCreateLink: (interviewId: string) => void; // ✅ parent callback
+  onCreateLink: (interviewId: string) => void;
 }
 
 const QuestionsList: React.FC<QuestionsListProps> = ({
@@ -34,8 +44,8 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  // --- ⚙️ Generate AI Interview Questions ---
   const generateAiInterviewQuestions = useCallback(async () => {
     if (!formData || Object.keys(formData).length === 0) return;
 
@@ -51,13 +61,9 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
         const body = new FormData();
         Object.entries(formData).forEach(([key, value]) => {
           if (value == null) return;
-          if (key === "file") {
-            body.append(key, value);
-          } else if (Array.isArray(value)) {
-            body.append(key, JSON.stringify(value));
-          } else {
-            body.append(key, String(value));
-          }
+          if (key === "file") body.append(key, value);
+          else if (Array.isArray(value)) body.append(key, JSON.stringify(value));
+          else body.append(key, String(value));
         });
 
         response = await fetch(apiEndpoint, { method: "POST", body });
@@ -83,7 +89,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
         toast.info("⚠️ No questions were generated.");
       }
     } catch (err: any) {
-      console.error("❌ AI Generation Error:", err);
+      console.error("AI Generation Error:", err);
       setError(err.message || "Failed to generate questions.");
       toast.error(err.message || "Failed to generate questions.");
     } finally {
@@ -97,7 +103,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
     }
   }, [formData, generateAiInterviewQuestions]);
 
-  // --- 🧠 Save interview ---
   const handleFinish = async () => {
     if (loading) return;
 
@@ -144,109 +149,139 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
 
       if (interviewId) {
         toast.success("✅ Interview saved successfully!");
-        // ✅ Pass to parent when finish clicked
         onCreateLink(interviewId);
       } else {
-        toast.info("Interview saved, but ID not found.");
+        toast.info("Interview saved but ID missing.");
       }
     } catch (err: any) {
-      console.error("❌ Save interview error:", err);
+      console.error("Save interview error:", err);
       toast.error(err.message || "Failed to save interview.");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- 🌀 Loading State ---
+  const handleCopy = (text: string, index: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  // 🔵 Loading UI (Styled)
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 gap-4">
-        <Loader2 className="animate-spin text-blue-600" size={42} />
-        <p className="text-gray-700 text-lg font-medium">
-          {formData.file
-            ? "Analyzing your uploaded file..."
-            : "Generating AI interview questions..."}
-        </p>
-        <p className="text-gray-500 text-sm">This may take a few seconds.</p>
-      </div>
+    <div className="w-full bg-white rounded-xl shadow-md border border-slate-200 mt-6">
+      <ExecutiveLoader active={true} />
+    </div>
+
     );
   }
 
-  // --- ❌ Error State ---
+  // ❌ Error UI (Styled)
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl mt-6 shadow-sm">
-        <h3 className="font-semibold text-lg mb-2">Error Occurred</h3>
-        <p className="text-sm">{error}</p>
-        <div className="mt-4">
-          <Button
-            variant="outline"
-            onClick={generateAiInterviewQuestions}
-            className="flex items-center gap-2"
-          >
-            <RefreshCcw size={16} /> Try Again
-          </Button>
-        </div>
+      <div className="bg-red-50 border border-red-200 p-8 rounded-2xl mt-6 shadow-sm text-red-700">
+        <h3 className="text-lg font-semibold">Error Occurred</h3>
+        <p className="text-sm mt-1">{error}</p>
+
+        <Button
+          variant="outline"
+          onClick={generateAiInterviewQuestions}
+          className="mt-4 flex items-center gap-2 border-red-300 text-red-700 hover:bg-red-100"
+        >
+          <RefreshCcw size={16} /> Try Again
+        </Button>
       </div>
     );
   }
 
-  // --- ⚠️ Empty State ---
-  if (!loading && questions.length === 0 && !error) {
+  if (!questions.length) {
     return (
-      <div className="text-center text-gray-500 p-10 mt-6 bg-white rounded-xl shadow-sm border border-slate-200 animate-fade-in">
+      <div className="p-10 text-center bg-white rounded-2xl mt-6 border shadow-sm text-gray-500">
         No questions were generated yet.
       </div>
     );
   }
 
-  // --- ✅ Success State ---
   return (
-    <div className="w-full md:w-[95%] bg-white p-8 mt-6 rounded-2xl shadow-md border border-slate-200 mx-auto transition-all duration-300">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">
-        🎯 Your Generated Questions
-      </h2>
+    <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden mt-6">
+      
+      {/* Header */}
+      <div className="px-8 py-6 border-b bg-slate-50 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-100 text-blue-700 rounded-lg shadow-sm">
+            <Target size={22} />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">
+              Your Generated Questions
+            </h2>
+            <p className="text-sm text-slate-500 font-medium">
+              Review and finalize your interview set
+            </p>
+          </div>
+        </div>
 
-      <div className="flex flex-col gap-5">
+        <span className="text-xs font-semibold px-3 py-1 bg-slate-200 text-slate-600 rounded-full">
+          {questions.length} Questions
+        </span>
+      </div>
+
+      {/* Question List */}
+      <div className="p-8 space-y-4">
         {questions.map((item, idx) => (
           <div
             key={idx}
-            className="bg-gray-50 border border-slate-200 p-5 rounded-xl hover:shadow-md transition-all"
+            className="group relative p-5 border border-slate-200 rounded-xl bg-white hover:border-blue-300 hover:shadow-md transition-all"
           >
-            <p className="text-gray-800 text-base leading-relaxed mb-2">
-              {item.question}
-            </p>
-            <p className="text-sm text-gray-600">
-              <strong>Type:</strong> {item.type}
-            </p>
+            <div className="flex justify-between items-start gap-4">
+              <div className="flex-1 space-y-3">
+                <h3 className="text-base font-medium text-slate-800 group-hover:text-blue-900 transition-colors">
+                  {item.question}
+                </h3>
+
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold uppercase tracking-wide">
+                  <Code2 size={12} />
+                  {item.type}
+                </span>
+              </div>
+
+              <button
+                onClick={() => handleCopy(item.question, idx)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+              >
+                {copiedIndex === idx ? (
+                  <Check size={16} className="text-green-500" />
+                ) : (
+                  <Copy size={16} />
+                )}
+              </button>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="flex justify-between mt-10">
+      {/* Footer */}
+      <div className="px-8 py-6 bg-slate-50 border-t flex justify-between flex-col sm:flex-row gap-3">
         <Button
           variant="outline"
-          onClick={generateAiInterviewQuestions}
           disabled={loading}
-          className="flex items-center gap-2 w-36 border-blue-600 text-blue-600 hover:bg-blue-50"
+          onClick={generateAiInterviewQuestions}
+          className="flex items-center gap-2 border-slate-300 text-slate-700 hover:border-blue-300 hover:text-blue-700 hover:bg-white"
         >
-          <RefreshCcw size={16} /> Regenerate
+          <RefreshCcw
+            size={16}
+            className="group-hover:rotate-180 transition-transform duration-500"
+          />
+          Regenerate
         </Button>
 
         <Button
-          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-56"
           onClick={handleFinish}
           disabled={loading}
+          className="bg-blue-700 hover:bg-blue-800 text-white flex items-center gap-2 shadow-md"
         >
-          {loading ? (
-            <>
-              <Loader2 className="animate-spin" size={16} /> Saving...
-            </>
-          ) : (
-            <>
-              Finish & Generate Link <ArrowRight size={16} />
-            </>
-          )}
+          Finish & Generate Link <ArrowRight size={16} />
         </Button>
       </div>
     </div>
