@@ -399,7 +399,7 @@ export default function FeedbackPage() {
           {/* RIGHT: ATS + Quick Stats */}
           <div className="lg:col-span-2 grid grid-cols-1 gap-6">
             {/* ATS Card */}
-            <div className="bg-slate-800 text-white p-6 rounded-xl relative overflow-hidden">
+            {/* <div className="bg-slate-800 text-white p-6 rounded-xl relative overflow-hidden">
               <div className="absolute right-0 top-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
 
               <div className="relative">
@@ -437,6 +437,55 @@ export default function FeedbackPage() {
                       </span>
                     )
                   )}
+                </div>
+              </div>
+            </div> */}
+
+            <div className="bg-white text-slate-800 p-6 rounded-xl border border-slate-200 relative overflow-hidden shadow-sm">
+              <div className="absolute right-0 top-0 w-64 h-64 bg-indigo-100 opacity-20 rounded-full blur-3xl"></div>
+
+              <div className="relative">
+                <div className="flex justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-indigo-100 rounded-xl">
+                      <Code2 className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-700">
+                        ATS Compatibility
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Automated Tracking Check
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span
+                     className={`text-4xl font-bold ${
+                     ats >= cutoff ? "text-emerald-600" : "text-red-500"
+                    }`}
+                     >
+                   {ats}%
+                  </span>
+                    <p className="text-xs text-slate-500">Cutoff: {cutoff}%</p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">
+                  Missing Keywords
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {(report.ats?.recommendedKeywords || []).map((k: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined, i: React.Key | null | undefined) => (
+                    <span
+                   key={i}
+                  className="px-3 py-1.5 bg-slate-100 rounded-full text-sm text-slate-700 border border-slate-300"
+                  >
+                 {k}
+                </span>
+
+                  ))}
                 </div>
               </div>
             </div>
@@ -528,7 +577,7 @@ export default function FeedbackPage() {
             </>
           ) : (
             <>
-              <div className="relative overflow-hidden bg-gradient-to-br from-rose-50 to-white border border-rose-200 rounded-2xl p-6 shadow-md">
+              <div className="relative overflow-hidden bg-linear-to-br from-rose-50 to-white border border-rose-200 rounded-2xl p-6 shadow-md">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-rose-200/30 rounded-full blur-2xl" />
 
                 <div className="relative flex items-start gap-4">

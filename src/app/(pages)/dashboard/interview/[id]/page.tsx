@@ -77,9 +77,9 @@ export default async function InterviewDetails({ params }: PageProps) {
   return (
     <div className="p-7">
         {/* 🔥 CHEATING DETECTION RUNS HERE */}
-      <div className="mb-8">
+      {/* <div className="mb-8">
          <CheatMonitorWrapper />
-      </div>
+      </div> */}
       <h1 className="text-2xl font-semibold mb-4">
         {safeInterview.jobPosition} – Candidate Leaderboard
       </h1>
@@ -92,7 +92,7 @@ export default async function InterviewDetails({ params }: PageProps) {
         <div className="text-sm text-slate-600">
           Interview ID: <span className="font-medium text-slate-800">{safeInterview.id ?? interviewId}</span>
           <span className="mx-2">•</span>
-          Created: <span className="font-medium text-slate-800">{safeInterview.createdAt ?? "—"}</span>
+          Created: <span className="font-medium text-slate-800">{String(safeInterview.createdAt) ?? "—"}</span>
         </div>
       </Card>
 

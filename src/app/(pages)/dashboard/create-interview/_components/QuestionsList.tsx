@@ -9,11 +9,12 @@ import {
   Copy,
   Check,
   Code2,
+  Pencil,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ExecutiveLoader } from "./ExecutiveLoader";
-
 
 interface SessionUser {
   id: string;
@@ -45,6 +46,8 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editedText, setEditedText] = useState("");
 
   const generateAiInterviewQuestions = useCallback(async () => {
     if (!formData || Object.keys(formData).length === 0) return;
@@ -167,17 +170,29 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  // 🔵 Loading UI (Styled)
+  const startEditing = (index: number, text: string) => {
+    setEditingIndex(index);
+    setEditedText(text);
+  };
+
+  const saveEdit = (index: number) => {
+    const updated = [...questions];
+    updated[index].question = editedText.trim();
+    setQuestions(updated);
+    setEditingIndex(null);
+    toast.success("Question updated!");
+  };
+
+  // 🔵 Loading UI
   if (loading) {
     return (
-    <div className="w-full bg-white rounded-xl shadow-md border border-slate-200 mt-6">
-      <ExecutiveLoader active={true} />
-    </div>
-
+      <div className="w-full bg-white rounded-xl shadow-md border border-slate-200 mt-6">
+        <ExecutiveLoader active={true} />
+      </div>
     );
   }
 
-  // ❌ Error UI (Styled)
+  // ❌ Error UI
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 p-8 rounded-2xl mt-6 shadow-sm text-red-700">
@@ -229,16 +244,28 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
 
       {/* Question List */}
       <div className="p-8 space-y-4">
+
         {questions.map((item, idx) => (
           <div
             key={idx}
             className="group relative p-5 border border-slate-200 rounded-xl bg-white hover:border-blue-300 hover:shadow-md transition-all"
           >
             <div className="flex justify-between items-start gap-4">
+
+              {/* LEFT CONTENT */}
               <div className="flex-1 space-y-3">
-                <h3 className="text-base font-medium text-slate-800 group-hover:text-blue-900 transition-colors">
-                  {item.question}
-                </h3>
+                {editingIndex === idx ? (
+                  <textarea
+                    value={editedText}
+                    onChange={(e) => setEditedText(e.target.value)}
+                    className="w-full text-sm border rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all resize-none"
+                    rows={3}
+                  />
+                ) : (
+                  <h3 className="text-base font-medium text-slate-800 group-hover:text-blue-900 transition-colors">
+                    {item.question}
+                  </h3>
+                )}
 
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold uppercase tracking-wide">
                   <Code2 size={12} />
@@ -246,16 +273,45 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
                 </span>
               </div>
 
-              <button
-                onClick={() => handleCopy(item.question, idx)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-              >
-                {copiedIndex === idx ? (
-                  <Check size={16} className="text-green-500" />
-                ) : (
-                  <Copy size={16} />
+              {/* RIGHT BUTTONS */}
+              <div className="flex flex-col gap-2 items-center">
+
+                {/* COPY BUTTON */}
+                {editingIndex !== idx && (
+                  <button
+                    onClick={() => handleCopy(item.question, idx)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                  >
+                    {copiedIndex === idx ? (
+                      <Check size={16} className="text-green-500" />
+                    ) : (
+                      <Copy size={16} />
+                    )}
+                  </button>
                 )}
-              </button>
+
+                {/* EDIT / SAVE BUTTON */}
+                <button
+                  onClick={() =>
+                    editingIndex === idx
+                      ? saveEdit(idx)
+                      : startEditing(idx, item.question)
+                  }
+                  className={`p-2 transition-all rounded-lg ${
+                    editingIndex === idx
+                      ? "bg-green-100 text-green-600 hover:bg-green-200"
+                      : "opacity-0 group-hover:opacity-100 text-slate-400 hover:bg-blue-50 hover:text-blue-600"
+                  }`}
+                >
+                  {editingIndex === idx ? (
+                    <Check size={16} className="text-green-600" />
+                  ) : (
+                    <Pencil size={16} />
+                  )}
+                </button>
+
+              </div>
+
             </div>
           </div>
         ))}
@@ -269,10 +325,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
           onClick={generateAiInterviewQuestions}
           className="flex items-center gap-2 border-slate-300 text-slate-700 hover:border-blue-300 hover:text-blue-700 hover:bg-white"
         >
-          <RefreshCcw
-            size={16}
-            className="group-hover:rotate-180 transition-transform duration-500"
-          />
+          <RefreshCcw size={16} />
           Regenerate
         </Button>
 
@@ -284,6 +337,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
           Finish & Generate Link <ArrowRight size={16} />
         </Button>
       </div>
+
     </div>
   );
 };

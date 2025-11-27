@@ -14,7 +14,7 @@ import { CheckCircle2, ShieldCheck, Wifi, Server, Code2 } from "lucide-react";
 /* ------------------------------------------------------
    🔥 UPDATED LOADER — EXACT REPLICA FROM REFERENCE FILE
 -------------------------------------------------------*/
-const TechLoader = ({ active }) => {
+const TechLoader = ({ active }: { active: boolean }) => {
   const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {

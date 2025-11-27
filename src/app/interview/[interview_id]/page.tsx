@@ -44,8 +44,7 @@ const ExecutiveLoader = () => {
 
   const radius = 30;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset =
-    circumference - (progress / 100) * circumference;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -198,13 +197,19 @@ export default function InterviewUI() {
   return (
     <div className="h-screen flex justify-center items-center bg-gray-100 p-4 overflow-hidden">
       <div className="w-full max-w-4xl bg-white shadow-lg rounded-2xl p-6 border flex flex-row items-center gap-6">
-
         {/* LEFT */}
         <div className="flex-1 flex flex-col items-center text-center p-4 border-r">
           <Image src="/logo.png" width={100} height={100} alt="Logo" />
-          <p className="text-gray-500 text-sm mt-1">AI-Powered Interview Platform</p>
+          <p className="text-gray-500 text-sm mt-1">
+            AI-Powered Interview Platform
+          </p>
 
-          <Image src="/interview.png" width={280} height={280} alt="Illustration" />
+          <Image
+            src="/interview.png"
+            width={280}
+            height={280}
+            alt="Illustration"
+          />
         </div>
 
         {/* RIGHT */}
@@ -212,8 +217,14 @@ export default function InterviewUI() {
           <h2 className="text-lg font-semibold">{data.jobPosition}</h2>
 
           <div className="flex items-center gap-4 text-gray-500 text-xs mt-2">
-            <span><Building2 className="inline w-3.5 h-3.5 mr-1" /> {data.company || "Zuntra"}</span>
-            <span><Clock className="inline w-3.5 h-3.5 mr-1" /> {data.duration || "30 Minutes"}</span>
+            <span>
+              <Building2 className="inline w-3.5 h-3.5 mr-1" />{" "}
+              {data.company || "Zuntra"}
+            </span>
+            <span>
+              <Clock className="inline w-3.5 h-3.5 mr-1" />{" "}
+              {data.duration || "30 Minutes"}
+            </span>
           </div>
 
           {/* STEP 1 — NAME + EMAIL */}
@@ -225,7 +236,10 @@ export default function InterviewUI() {
                   type="text"
                   className="w-full border rounded-lg px-3 py-2 mt-1"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={
+                    (e) =>
+                      setFullName(e.target.value.replace(/[^A-Za-z ]/g, "")) // allow only letters & space
+                  }
                 />
               </div>
 
@@ -239,20 +253,20 @@ export default function InterviewUI() {
                 />
               </div>
 
-             <button
-               onClick={startVerification}
-               className="w-full bg-blue-600 text-white py-2.5 rounded-lg mt-5 flex items-center justify-center gap-2"
-               disabled={loading}
+              <button
+                onClick={startVerification}
+                className="w-full bg-blue-600 text-white py-2.5 rounded-lg mt-5 flex items-center justify-center gap-2"
+                disabled={loading}
               >
-            {loading ? (
-             <>
-              <Loader2 className="animate-spin h-5 w-5" />
-                 Processing
-              </>
-              ) : (
-              "Next →"
-             )}
-             </button>
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin h-5 w-5" />
+                    Processing
+                  </>
+                ) : (
+                  "Next →"
+                )}
+              </button>
             </>
           )}
 
@@ -271,23 +285,22 @@ export default function InterviewUI() {
                 onChange={(e) => setOtp(e.target.value)}
               />
 
-             <button
-               onClick={verifyOtp}
-               disabled={loading}
-               className={`w-full bg-blue-600 text-white py-2.5 rounded-lg mt-5
+              <button
+                onClick={verifyOtp}
+                disabled={loading}
+                className={`w-full bg-blue-600 text-white py-2.5 rounded-lg mt-5
                 flex items-center justify-center gap-2 font-medium transition
                 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-blue-700`}
               >
-             {loading ? (
-                 <>
-               <Loader2 className="animate-spin h-5 w-5" />
-                Verifying…
-               </>
-              ) : (
-             "Verify OTP →"
-              )}
-             </button>
-
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin h-5 w-5" />
+                    Verifying…
+                  </>
+                ) : (
+                  "Verify OTP →"
+                )}
+              </button>
             </>
           )}
 
@@ -297,7 +310,9 @@ export default function InterviewUI() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-5 text-left text-sm">
                 <div className="flex items-center gap-2 mb-2">
                   <Info className="w-4 h-4 text-blue-600" />
-                  <p className="font-semibold text-blue-600">Before You Begin</p>
+                  <p className="font-semibold text-blue-600">
+                    Before You Begin
+                  </p>
                 </div>
 
                 <ul className="list-disc ml-5 text-gray-700">

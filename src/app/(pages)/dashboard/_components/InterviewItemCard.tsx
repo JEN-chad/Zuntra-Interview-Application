@@ -85,14 +85,21 @@ const InterviewItemCard = ({ interview }: InterviewItemCardProps) => {
                 <div className="flex items-center space-x-2">
                     <Tag className="h-4 w-4 text-gray-400" />
 
-                    {Array.isArray(interview.type) && interview.type.length > 0 && (
-                        <span
-                            className={`${getTagColor(interview.type[0]).bg} ${getTagColor(interview.type[0]).text}
-                            text-xs font-medium px-2.5 py-0.5 rounded-full`}
-                        >
-                            {interview.type[0]}
-                        </span>
-                    )}
+                   {Array.isArray(interview.type) && interview.type.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1">
+                    { interview.type.map((tag, idx) => {
+                     const colors = getTagColor(tag);
+                     return (
+                   <span
+                   key={idx}
+                   className={`${colors.bg} ${colors.text} text-xs font-medium px-2.5 py-0.5 rounded-full`}
+                   >
+                   {tag}
+                </span>
+                );
+               })}
+              </div>
+               )}
                 </div>
 
                 {/* Date */}

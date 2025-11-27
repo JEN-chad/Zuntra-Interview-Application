@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,14 +18,33 @@ import Link from "next/link";
 
 const InterviewLink = ({
   interviewId,
-  formData,
   onReset,
 }: {
   interviewId: string;
-  formData?: Record<string, any>;
   onReset?: () => void;
 }) => {
   const [copied, setCopied] = useState(false);
+
+  const [details, setDetails] = useState<{
+    duration?: string;
+    questionCount?: number;
+    expiresAt?: string;
+  }>({});
+
+  // Fetch DB details
+  useEffect(() => {
+    const loadDetails = async () => {
+      try {
+        const res = await fetch(`/api/interview/${interviewId}/details`);
+        const data = await res.json();
+        setDetails(data);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    loadDetails();
+  }, [interviewId]);
 
   const getInterviewUrl = () =>
     `${process.env.NEXT_PUBLIC_HOST_URL}/${interviewId}`;
@@ -46,6 +65,10 @@ const InterviewLink = ({
       getInterviewUrl()
     )}`,
   };
+
+  const formattedExpiry = details.expiresAt
+    ? new Date(details.expiresAt).toLocaleDateString()
+    : "N/A";
 
   return (
     <div className="flex flex-col items-center justify-center mt-10 px-5">
@@ -72,7 +95,7 @@ const InterviewLink = ({
           </span>
         </div>
 
-        {/* Link Input + Copy Button */}
+        {/* Link Input + Copy */}
         <div className="flex items-center gap-2">
           <Input
             value={getInterviewUrl()}
@@ -95,15 +118,19 @@ const InterviewLink = ({
         <div className="flex flex-wrap items-center gap-6 text-gray-600 text-sm">
           <span className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-gray-500" />
-            {formData?.interviewDuration || "30 Minutes"}
+            {details.duration || "Loading..."}
           </span>
+
           <span className="flex items-center gap-2">
             <List className="h-4 w-4 text-gray-500" />
-            {formData?.questionCount || "10 Questions"}
+            {details.questionCount
+              ? `${details.questionCount} Questions`
+              : "Loading..."}
           </span>
+
           <span className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-gray-500" />
-            Expires: Nov 20, 2025
+            Expires: {formattedExpiry}
           </span>
         </div>
       </div>
@@ -112,33 +139,21 @@ const InterviewLink = ({
       <div className="w-full md:w-[600px] mt-6">
         <h3 className="font-medium text-gray-700 mb-3">Share via</h3>
         <div className="grid grid-cols-3 gap-3">
-          <Button
-            variant="outline"
-            className="flex items-center justify-center gap-2 py-4 border-gray-200 hover:bg-gray-50"
-            asChild
-          >
+          <Button variant="outline" asChild>
             <a href={shareLinks.email} target="_blank">
               <Mail className="h-4 w-4 text-gray-700" />
               <span>Email</span>
             </a>
           </Button>
 
-          <Button
-            variant="outline"
-            className="flex items-center justify-center gap-2 py-4 border-gray-200 hover:bg-gray-50"
-            asChild
-          >
+          <Button variant="outline" asChild>
             <a href={shareLinks.slack} target="_blank">
               <Send className="h-4 w-4 text-gray-700" />
               <span>Slack</span>
             </a>
           </Button>
 
-          <Button
-            variant="outline"
-            className="flex items-center justify-center gap-2 py-4 border-gray-200 hover:bg-gray-50"
-            asChild
-          >
+          <Button variant="outline" asChild>
             <a href={shareLinks.whatsapp} target="_blank">
               <MessageSquare className="h-4 w-4 text-gray-700" />
               <span>WhatsApp</span>
@@ -150,18 +165,10 @@ const InterviewLink = ({
       {/* Bottom Buttons */}
       <div className="w-full md:w-[600px] flex justify-between mt-8">
         <Link href={"/dashboard"}>
-          <Button
-            variant="outline"
-            className="text-gray-700 border-gray-300 hover:bg-gray-50"
-          >
-            ← Back to Dashboard
-          </Button>
+          <Button variant="outline">← Back to Dashboard</Button>
         </Link>
 
-        <Button
-          onClick={() => onReset?.()} // 👈 Reset to Step 1
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
+        <Button onClick={() => onReset?.()} className="bg-blue-600 text-white">
           + Create New Interview
         </Button>
       </div>
