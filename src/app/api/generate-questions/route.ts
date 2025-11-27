@@ -6,26 +6,19 @@ import mammoth from "mammoth";
  * Required env:
  *  - GCP_PROJECT_ID
  *  - GOOGLE_APPLICATION_CREDENTIALS (absolute path to service account JSON)
- *
- * Make sure Vertex AI / Model Garden / Generative Language APIs are enabled
- * on the project (zuntra-interview-ai).
  */
-
-// ---------- basic env checks ----------
 
 const pdf = require("pdf-parse");
 
-
+// ---------- ENV VALIDATION ----------
 if (!process.env.GCP_PROJECT_ID) {
   throw new Error("Missing GCP_PROJECT_ID env var");
 }
 if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-  throw new Error(
-    "Missing GOOGLE_APPLICATION_CREDENTIALS env var (path to service account JSON)"
-  );
+  throw new Error("Missing GOOGLE_APPLICATION_CREDENTIALS env var");
 }
 
-// ---------- Vertex client (re-used) ----------
+// ---------- Vertex Client ----------
 const vertex = new VertexAI({
   project: process.env.GCP_PROJECT_ID,
   location: "us-central1",
@@ -34,19 +27,15 @@ const vertex = new VertexAI({
   },
 });
 
-// Preferred model choices (order = preference/fallback)
+// Preferred model list
 const PREFERRED_MODELS = [
-  // publisher full resource path (works where publisher models are used)
   `projects/${process.env.GCP_PROJECT_ID}/locations/us-central1/publishers/google/models/gemini-2.0-flash`,
-  // model garden full resource (some SDKs expect this)
   `projects/${process.env.GCP_PROJECT_ID}/locations/us-central1/models/gemini-2.0-flash`,
-  // Model Garden short id / Model Garden Garden ID
   "models/gemini-2.0-flash",
-  // alternate short form (some older SDKs used this)
   "google/gemini-2.0-flash",
 ];
 
-// Utility: attempt to build a generative model using the first working model id
+// ---------- Resolve Model ----------
 async function getAvailableModel() {
   let lastErr: any = null;
   for (const modelId of PREFERRED_MODELS) {
@@ -55,24 +44,20 @@ async function getAvailableModel() {
         model: modelId,
         generationConfig: { responseMimeType: "application/json" },
       });
-      // quick test call to ensure model is usable (lightweight test)
-      // Some SDKs create a client only; we will return candidate and let caller call generateContent.
       return candidate;
     } catch (err) {
       lastErr = err;
-      // try next
     }
   }
-  // If none succeeded, throw the last error.
   throw lastErr || new Error("No available Vertex model found");
 }
 
-// ---------- Main handler ----------
+// ---------- Main Handler ----------
 export async function POST(request: Request) {
   try {
     const contentType = request.headers.get("content-type") || "";
 
-    // Case A: multipart/form-data (file review)
+    // -------------------- CASE A: multipart with file --------------------
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       const file = formData.get("file") as File | null;
@@ -82,6 +67,7 @@ export async function POST(request: Request) {
       }
 
       const fileText = await extractTextFromFile(file);
+
       const jobPosition = String(formData.get("jobPosition") || "").trim();
       const jobDescription = String(formData.get("jobDescription") || "").trim();
       const interviewTypes = JSON.parse(
@@ -99,7 +85,7 @@ export async function POST(request: Request) {
       return NextResponse.json(normalizeToType2(aiResponse));
     }
 
-    // Case B: application/json (generate new questions)
+    // -------------------- CASE B: application/json --------------------
     if (contentType.includes("application/json")) {
       const body = await request.json();
 
@@ -115,7 +101,9 @@ export async function POST(request: Request) {
         String(jobPosition),
         String(jobDescription),
         String(interviewDuration),
-        Array.isArray(interviewType) ? (interviewType as string[]) : [String(interviewType)],
+        Array.isArray(interviewType)
+          ? (interviewType as string[])
+          : [String(interviewType)],
         String(experienceLevel)
       );
 
@@ -136,71 +124,112 @@ export async function POST(request: Request) {
   }
 }
 
-// ---------- Helpers ----------
+// ====================================================================
+//                        FILE TEXT EXTRACTION
+// ====================================================================
 
 async function extractTextFromFile(file: File): Promise<string> {
   const buffer = Buffer.from(await file.arrayBuffer());
+  const mime = file.type;
 
-  if (file.type === "application/pdf") {
-    const data = await pdf(buffer);
-    return data.text || "";
+  // ---------- 1. PDF → Gemini ----------
+  if (mime === "application/pdf") {
+    return await extractUsingGemini(buffer, mime);
   }
 
+  // ---------- 2. Image → Gemini ----------
   if (
-    file.type ===
+    mime.startsWith("image/") &&
+    (mime.endsWith("png") ||
+      mime.endsWith("jpeg") ||
+      mime.endsWith("jpg") ||
+      mime.endsWith("webp"))
+  ) {
+    return await extractUsingGemini(buffer, mime);
+  }
+
+  // ---------- 3. DOCX → Mammoth ----------
+  if (
+    mime ===
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
     const result = await mammoth.extractRawText({ buffer });
     return result?.value || "";
   }
 
-  // older .doc
-  if (file.type === "application/msword") {
+  // ---------- 4. DOC → fallback ----------
+  if (mime === "application/msword") {
     return buffer.toString("utf-8");
   }
 
-  // fallback: try UTF-8 conversion
+  // ---------- 5. Other files → fallback ----------
   return buffer.toString("utf-8");
 }
 
+// ---------- Gemini Parser for PDF & Images ----------
+async function extractUsingGemini(buffer: Buffer, mimeType: string) {
+  const base64 = buffer.toString("base64");
+  const model = await getAvailableModel();
+
+  const prompt = `
+Extract all readable text from this document or image.
+Return ONLY plain text. No markdown. No code blocks.
+Preserve logical reading order.
+`;
+
+  const result = await model.generateContent({
+    contents: [
+      { role: "user", parts: [{ text: prompt }] },
+      {
+        role: "user",
+        parts: [
+          {
+            inlineData: {
+              mimeType,
+              data: base64,
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  return (
+    result?.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || ""
+  );
+}
+
+// ====================================================================
+//                        GENERATE QUESTIONS
+// ====================================================================
+
 async function generateAIContent(prompt: string) {
   try {
-    // Resolve the best model instance at runtime (handles SDK model-id differences)
     const model = await getAvailableModel();
 
-    // Make the call
     const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
     });
 
-    // The SDK response shape can vary slightly; we try to read the text defensively.
     const rawText =
-      (result as any)?.response?.candidates?.[0]?.content?.parts?.[0]?.text ??
-      (result as any)?.response?.text?.() ??
-      (result as any)?.response?.[0]?.text;
+      result?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawText) {
-      // Dump the whole result for debugging
       console.error("Vertex raw result (unexpected shape):", JSON.stringify(result, null, 2));
       throw new Error("No text returned from Vertex model");
     }
 
-    // Expect the model to return a JSON string exactly as specified in your prompts.
-    // Parse and return it.
     return JSON.parse(rawText);
-  } catch (err: any) {
+  } catch (err) {
     console.error("Vertex Generation Error:", err);
-    // Re-throw so handler returns 500 and logs show details.
     throw err;
   }
 }
 
-// Normalizer: converts many shapes to the Type2 format you expect
+// ====================================================================
+//                        NORMALIZER
+// ====================================================================
+
 function normalizeToType2(aiResponse: any) {
   const output: { questions: { question: string; type: string }[] } = {
     questions: [],
@@ -208,7 +237,7 @@ function normalizeToType2(aiResponse: any) {
 
   if (!aiResponse || !aiResponse.questions) return output;
 
-  // Case A: already an array of {question, type}
+  // Already [{question,type}]
   if (Array.isArray(aiResponse.questions)) {
     output.questions = aiResponse.questions
       .filter((q: any) => q?.question && q?.type)
@@ -219,11 +248,11 @@ function normalizeToType2(aiResponse: any) {
     return output;
   }
 
-  // Case B: grouped object { technical: ["q1","q2"], soft: ["q1"] }
+  // Object form { technical: ["q1"], soft: ["q2"] }
   Object.entries(aiResponse.questions).forEach(([type, list]) => {
     if (Array.isArray(list)) {
-      (list as string[]).forEach((q: string) => {
-        if (typeof q === "string" && q.trim()) {
+      list.forEach((q) => {
+        if (q && typeof q === "string" && q.trim()) {
           output.questions.push({ question: q.trim(), type });
         }
       });
@@ -233,7 +262,10 @@ function normalizeToType2(aiResponse: any) {
   return output;
 }
 
-// ---------- Prompt builders ----------
+// ====================================================================
+//                        PROMPT BUILDERS
+// ====================================================================
+
 function buildGenerationPrompt(
   jobPosition: string,
   jobDescription: string,
@@ -276,11 +308,10 @@ Guidelines:
 4. Align questions with the specified experience level:
    ${levelGuideline}
 5. Avoid redundancy and irrelevant questions.
-6. Respond ONLY with pure JSON in this structure:
+6. Respond ONLY with pure JSON:
 
 {
   "questions": [
-    { "question": "string", "type": "string" },
     { "question": "string", "type": "string" }
   ]
 }
@@ -310,9 +341,9 @@ ${fileText}
 
 Rules:
 1. Identify all valid interview questions.
-2. Assign each a "type" from: ${typesString}.
-3. Exclude duplicates or irrelevant content.
-4. Respond ONLY with JSON in this format:
+2. Assign each a type from: ${typesString}.
+3. Remove duplicates or irrelevant items.
+4. Respond ONLY with JSON:
 
 {
   "questions": [

@@ -48,6 +48,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editedText, setEditedText] = useState("");
+  const [editedTag, setEditedTag] = useState("");
 
   const generateAiInterviewQuestions = useCallback(async () => {
     if (!formData || Object.keys(formData).length === 0) return;
@@ -170,14 +171,16 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const startEditing = (index: number, text: string) => {
+  const startEditing = (index: number, text: string, type: string) => {
     setEditingIndex(index);
     setEditedText(text);
+    setEditedTag(type);
   };
 
   const saveEdit = (index: number) => {
     const updated = [...questions];
     updated[index].question = editedText.trim();
+    updated[index].type = editedTag.trim();
     setQuestions(updated);
     setEditingIndex(null);
     toast.success("Question updated!");
@@ -255,28 +258,44 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
               {/* LEFT CONTENT */}
               <div className="flex-1 space-y-3">
                 {editingIndex === idx ? (
-                  <textarea
-                    value={editedText}
-                    onChange={(e) => setEditedText(e.target.value)}
-                    className="w-full text-sm border rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all resize-none"
-                    rows={3}
-                  />
-                ) : (
-                  <h3 className="text-base font-medium text-slate-800 group-hover:text-blue-900 transition-colors">
-                    {item.question}
-                  </h3>
-                )}
+                  <>
+                    <textarea
+                      value={editedText}
+                      onChange={(e) => setEditedText(e.target.value)}
+                      className="w-full text-sm border rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all resize-none"
+                      rows={3}
+                    />
 
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold uppercase tracking-wide">
-                  <Code2 size={12} />
-                  {item.type}
-                </span>
+                    {/* TAG SELECT */}
+                    <select
+                      value={editedTag}
+                      onChange={(e) => setEditedTag(e.target.value)}
+                      className="w-full text-sm border rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                    >
+                      <option value="Technical">Technical</option>
+                      <option value="Behavioral">Behavioral</option>
+                      <option value="Experience">Experience</option>
+                      <option value="Problem Solving">Problem Solving</option>
+                      <option value="Leadership">Leadership</option>
+                    </select>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-base font-medium text-slate-800 group-hover:text-blue-900 transition-colors">
+                      {item.question}
+                    </h3>
+
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold uppercase tracking-wide">
+                      <Code2 size={12} />
+                      {item.type}
+                    </span>
+                  </>
+                )}
               </div>
 
               {/* RIGHT BUTTONS */}
               <div className="flex flex-col gap-2 items-center">
 
-                {/* COPY BUTTON */}
                 {editingIndex !== idx && (
                   <button
                     onClick={() => handleCopy(item.question, idx)}
@@ -290,12 +309,11 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
                   </button>
                 )}
 
-                {/* EDIT / SAVE BUTTON */}
                 <button
                   onClick={() =>
                     editingIndex === idx
                       ? saveEdit(idx)
-                      : startEditing(idx, item.question)
+                      : startEditing(idx, item.question, item.type)
                   }
                   className={`p-2 transition-all rounded-lg ${
                     editingIndex === idx
