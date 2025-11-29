@@ -237,23 +237,23 @@ function normalizeToType2(aiResponse: any) {
 
   if (!aiResponse || !aiResponse.questions) return output;
 
-  // Already [{question,type}]
+  // Case: AI already returned an array [{question}]
   if (Array.isArray(aiResponse.questions)) {
     output.questions = aiResponse.questions
-      .filter((q: any) => q?.question && q?.type)
+      .filter((q: any) => q?.question)
       .map((q: any) => ({
         question: String(q.question).trim(),
-        type: String(q.type).trim(),
+        type: "", // Always blank for user to select manually
       }));
     return output;
   }
 
-  // Object form { technical: ["q1"], soft: ["q2"] }
-  Object.entries(aiResponse.questions).forEach(([type, list]) => {
+  // Fallback for object format
+  Object.entries(aiResponse.questions).forEach(([_, list]) => {
     if (Array.isArray(list)) {
       list.forEach((q) => {
         if (q && typeof q === "string" && q.trim()) {
-          output.questions.push({ question: q.trim(), type });
+          output.questions.push({ question: q.trim(), type: "" });
         }
       });
     }
@@ -273,42 +273,55 @@ function buildGenerationPrompt(
   interviewType: string[],
   experienceLevel: string
 ): string {
-  const typesString = interviewType.join(", ") || "technical,behavioral";
+  // If recruiter selects nothing, default to all 5
+  const selectedTypes =
+    interviewType.length > 0
+      ? interviewType
+      : ["Technical", "Behavioral", "Experience", "Problem Solving", "Leadership"];
 
-  let questionCountRange = "5–7";
-  if (interviewDuration.includes("5")) questionCountRange = "3–5";
-  else if (interviewDuration.includes("15")) questionCountRange = "6–10";
-  else if (interviewDuration.includes("30")) questionCountRange = "11–15";
-  else if (interviewDuration.includes("45")) questionCountRange = "16–20";
-  else if (interviewDuration.includes("60")) questionCountRange = "21–25";
+  const typesString = selectedTypes.join(", ");
 
   const experienceGuidelines: Record<string, string> = {
-    Junior: "Focus on basic conceptual understanding and simple problem-solving.",
-    Mid: "Include scenario-based questions testing applied knowledge and debugging.",
+    Junior:
+      "Ask simple, fundamental, beginner-friendly questions that test understanding rather than deep expertise.",
+    Mid: "Ask practical, scenario-based, debugging and applied knowledge questions.",
     Senior:
-      "Include advanced, design-level questions that assess architecture and leadership.",
+      "Ask deep, architectural, system-design, leadership, high-impact reasoning questions.",
   };
 
   const levelGuideline =
-    experienceGuidelines[experienceLevel] ||
-    "Generate questions relevant to the experience level.";
+    experienceGuidelines[experienceLevel] || "Match questions to the experience level.";
 
-  return `You are an expert AI interviewer that generates professional interview questions.
+  return `
+You are an expert AI interview question generator.
 
-Job Role: ${jobPosition}
-Experience Level: ${experienceLevel}
-Job Description: ${jobDescription}
-Interview Duration: ${interviewDuration}
-Requested Question Types: ${typesString}
+Your task:
+Generate **EXACTLY 30** interview questions.
 
-Guidelines:
-1. Generate approximately ${questionCountRange} unique, high-quality questions.
-2. Each question must include both "question" and its "type".
-3. The "type" value must be exactly one of: ${typesString}.
-4. Align questions with the specified experience level:
+Each question must have:
+- "question": the question text
+- "type": one of these → ${typesString}
+
+Rules:
+1. Generate questions ONLY from the selected types listed above.
+2. The 30 questions MUST be evenly distributed across the selected types.
+   Examples:
+   - If 1 type selected → all 30 belong to that type.
+   - If 2 types selected → ~15 per type.
+   - If 3 types selected → ~10 per type.
+   - If 4 types selected → ~7–8 per type.
+   - If 5 types selected → ~6 per type.
+3. Every question MUST be completely unique (no rephrased duplicates).
+4. All questions must match:
+   - Job Role: ${jobPosition}
+   - Experience Level: ${experienceLevel}
+   - Job Description responsibility & context
+5. Apply the level-specific difficulty:
    ${levelGuideline}
-5. Avoid redundancy and irrelevant questions.
-6. Respond ONLY with pure JSON:
+6. Avoid generic or textbook-style questions.
+7. Output must be ONLY valid JSON. No markdown. No commentary.
+
+The required output structure is:
 
 {
   "questions": [
@@ -316,7 +329,10 @@ Guidelines:
   ]
 }
 
-Do NOT include any explanation or commentary.`;
+--- Job Description ---
+${jobDescription}
+------------------------
+`;
 }
 
 function buildReviewPrompt(
@@ -325,30 +341,29 @@ function buildReviewPrompt(
   jobDescription: string,
   interviewTypes: string[]
 ): string {
-  const typesString = interviewTypes.join(", ") || "technical,behavioral";
+  return `
+You are an expert recruitment assistant.
+Extract ONLY the interview questions from the document.
 
-  return `You are an expert recruitment assistant.
-Analyze the document and extract interview questions.
+Important:
+- DO NOT assign any category or type.
+- DO NOT attempt to classify questions.
+- Return ONLY the detected questions.
+- No commentary. No markdown.
 
-Job Role: ${jobPosition}
-Job Description: ${jobDescription}
-Categories: ${typesString}
-
-Document:
----
-${fileText}
----
-
-Rules:
-1. Identify all valid interview questions.
-2. Assign each a type from: ${typesString}.
-3. Remove duplicates or irrelevant items.
-4. Respond ONLY with JSON:
-
+Output format:
 {
   "questions": [
-    { "question": "string", "type": "string" }
+    { "question": "string" }
   ]
 }
+
+Document content:
+----------------
+${fileText}
+----------------
+
+Extract as many valid interview questions as possible.
+If sentences resemble questions but are not valid interview questions, ignore them.
 `;
 }

@@ -283,46 +283,69 @@ const FormContainer = ({
         </div>
 
         {/* File Upload */}
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Upload Questions (Optional)</label>
-          
-          {!formData.file ? (
-            <div className="relative border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 hover:border-blue-300 transition-colors cursor-pointer group bg-slate-50/30">
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={handleFileChange}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-              />
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200">
-                <Upload size={20} />
-              </div>
-              <p className="text-sm text-slate-600 font-medium">Click to upload or drag and drop</p>
-              <p className="text-xs text-slate-400 mt-1">PDF or Word files (DOC/DOCX)</p>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-100 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white text-blue-600 rounded-md border border-blue-100">
-                  <FileText size={20} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-700 truncate max-w-[200px] sm:max-w-xs">
-                    {formData.file.name}
-                  </p>
-                  <p className="text-xs text-blue-500">File uploaded successfully</p>
-                </div>
-              </div>
-              <button
-                onClick={handleRemoveFile}
-                className="p-2 text-slate-400 hover:text-red-500 hover:bg-white rounded-full transition-colors"
-                title="Remove file"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          )}
+       {/* File Upload */}
+<div className="space-y-2">
+  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+    Upload Questions (Optional)
+  </label>
+
+  {/* NEW NOTE HERE */}
+  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+  <div className="mt-0.5">
+    <svg xmlns="http://www.w3.org/2000/svg" 
+         className="w-4 h-4 text-amber-600" 
+         fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M12 9v3m0 4h.01M4.93 19h14.14c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.2 16c-.77 1.33.19 3 1.73 3z" />
+    </svg>
+  </div>
+
+  <p className="text-xs text-amber-700 leading-snug">
+    <span className="font-semibold">Important:</span> 
+    Your uploaded question file must contain at least 
+    <span className="font-bold"> 30 valid interview questions.</span>
+  </p>
+</div>
+
+
+  {!formData.file ? (
+    <div className="relative border-2 border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 hover:border-blue-300 transition-colors cursor-pointer group bg-slate-50/30">
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx"
+        onChange={handleFileChange}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+      />
+      <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200">
+        <Upload size={20} />
+      </div>
+      <p className="text-sm text-slate-600 font-medium">Click to upload or drag and drop</p>
+      <p className="text-xs text-slate-400 mt-1">PDF or Word files (DOC/DOCX)</p>
+    </div>
+  ) : (
+    <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-100 rounded-lg">
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-white text-blue-600 rounded-md border border-blue-100">
+          <FileText size={20} />
         </div>
+        <div>
+          <p className="text-sm font-semibold text-slate-700 truncate max-w-[200px] sm:max-w-xs">
+            {formData.file.name}
+          </p>
+          <p className="text-xs text-blue-500">File uploaded successfully</p>
+        </div>
+      </div>
+      <button
+        onClick={handleRemoveFile}
+        className="p-2 text-slate-400 hover:text-red-500 hover:bg-white rounded-full transition-colors"
+        title="Remove file"
+      >
+        <X size={18} />
+      </button>
+    </div>
+  )}
+</div>
+
 
       </div>
 
