@@ -327,7 +327,7 @@ export default function FeedbackPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg">
+            <div className="bg-blue-600 p-1.5 rounded-lg">
               <FileText className="w-4 h-4 text-white" />
             </div>
             <h1 className="font-bold text-lg text-slate-800">
@@ -383,17 +383,30 @@ export default function FeedbackPage() {
               )}
             </div>
 
-            <button
-              disabled={!didPass}
-              onClick={() => router.push(`/interview/${interview_id}/start`)}
-              className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 ${
-                didPass
-                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                  : "bg-slate-100 text-slate-400 cursor-not-allowed"
-              }`}
-            >
-              Start Interview <ChevronRight size={16} />
-            </button>
+          <button
+  disabled={!didPass}
+  onClick={() => router.push(`/interview/${interview_id}/slot`)}
+  className={`
+    w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2
+    transition-all duration-200
+
+    ${
+      didPass
+        ? `
+          bg-blue-600 text-white border border-blue-600
+          hover:bg-blue-700 hover:border-blue-700
+        `
+        : `
+          bg-white text-blue-400 border border-blue-300
+          cursor-not-allowed
+        `
+    }
+  `}
+>
+  Start Interview <ChevronRight size={16} />
+</button>
+
+
           </Card>
 
           {/* RIGHT: ATS + Quick Stats */}
@@ -569,8 +582,9 @@ export default function FeedbackPage() {
               </div>
 
               <button
-                onClick={() => router.push(`/interview/${interview_id}/start`)}
-                className="px-6 py-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 inline-flex gap-2"
+                onClick={() => router.push(`/interview/${interview_id}/slot`)}
+                className="px-6 py-3 rounded-lg bg-blue-600 text-white border border-blue-600
+          hover:bg-blue-700 hover:border-blue-700 inline-flex gap-2"
               >
                 Start Interview <ChevronRight size={16} />
               </button>

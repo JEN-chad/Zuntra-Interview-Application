@@ -7,6 +7,7 @@ import {
   timestamp,
   jsonb,
   unique,
+  foreignKey,
 } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["admin", "client"]);
@@ -105,6 +106,7 @@ export const candidate = pgTable(
   },
   (table) => ({
     uniqueEmailPerInterview: unique().on(table.email, table.interviewId),
+    uid_interview_pair: unique().on(table.id, table.interviewId),
   })
 );
 
@@ -183,3 +185,100 @@ export const resumeQuestions = pgTable("resume_questions", {
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+
+// export const recruiterAvailability = pgTable("recruiter_availability", {
+//   id: text("id").primaryKey(),
+
+//   userId: text("user_id")
+//     .notNull()
+//     .references(() => user.id, { onDelete: "cascade" }),
+
+//   // Availability window in UTC
+//   startTime: timestamp("start_time").notNull(),
+//   endTime: timestamp("end_time").notNull(),
+
+//   // For weekly recurring availability: e.g. "RRULE:FREQ=WEEKLY;BYDAY=MO,WE"
+//   recurring: text("recurring"),      
+
+//   // Optional job-specific slot (if needed)
+//   interviewId: text("interview_id").references(() => interview.id, {
+//     onDelete: "set null",
+//   }),
+
+//   createdAt: timestamp("created_at").notNull().defaultNow(),
+// });
+
+export const calendarConnection = pgTable("calendar_connection", {
+  id: text("id").primaryKey(),
+
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+
+  provider: text("provider").notNull(), // "google" | "microsoft" | "ics"
+
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+
+  scope: text("scope"),
+  calendarId: text("calendar_id").default("primary"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+ 
+export const booking = pgTable("booking", {
+  id: text("id").primaryKey(),
+
+  interviewId: text("interview_id")
+    .notNull()
+    .references(() => interview.id, { onDelete: "cascade" }),
+
+ recruiterId: text("recruiter_id")
+  .references(() => user.id, { onDelete: "set null" }),
+
+
+  candidateId: text("candidate_id")
+    .notNull()
+    .references(() => candidate.id, { onDelete: "cascade" }),
+
+  start: timestamp("start").notNull(),
+  end: timestamp("end").notNull(),
+
+  status: text("status").notNull(),
+
+  providerEventId: text("provider_event_id"),
+  provider: text("provider"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+
+
+export const bookingHold = pgTable("booking_hold", {
+  id: text("id").primaryKey(),
+
+  recruiterId: text("recruiter_id")
+    .references(() => user.id, { onDelete: "set null" }),  // <-- FIXED
+
+  candidateId: text("candidate_id")
+    .notNull()
+    .references(() => candidate.id, { onDelete: "cascade" }),
+
+  interviewId: text("interview_id")
+    .notNull()
+    .references(() => interview.id, { onDelete: "cascade" }),
+
+  start: timestamp("start").notNull(),
+  end: timestamp("end").notNull(),
+
+  expiresAt: timestamp("expires_at").notNull(),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+
+
