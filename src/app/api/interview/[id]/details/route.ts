@@ -29,7 +29,7 @@ export async function GET(
 
     return NextResponse.json({
       duration: data.duration,
-      questionCount: data.questionList?.length || 0,
+      questionCount: Array.isArray(data.questionList) ? data.questionList.length : 0,
       expiresAt: data.createdAt
         ? new Date(new Date(data.createdAt).getTime() + 30 * 86400000)
         : null,

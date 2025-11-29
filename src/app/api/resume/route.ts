@@ -7,7 +7,7 @@ import { randomUUID } from "crypto";
 import { VertexAI } from "@google-cloud/vertexai";
 import PDFParser from "pdf2json";
 
-// ------------ PDF to TEXT ------------
+// ------------ SAFE PDF to TEXT ------------
 async function extractPdfText(buffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParser();
@@ -18,18 +18,40 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
 
     pdfParser.on("pdfParser_dataReady", (data: any) => {
       let text = "";
+
+      const safeDecode = (str: string) => {
+        try {
+          if (/%[0-9A-Fa-f]{2}/.test(str)) {
+            return decodeURIComponent(str);
+          }
+        } catch {
+          return str;
+        }
+        return str;
+      };
+
       data.Pages.forEach((page: any) => {
         page.Texts.forEach((t: any) => {
           t.R.forEach((r: any) => {
-            text += decodeURIComponent(r.T) + " ";
+            text += safeDecode(r.T) + " ";
           });
         });
       });
-      resolve(text);
+
+      resolve(text.trim());
     });
 
     pdfParser.parseBuffer(buffer);
   });
+}
+
+// ------------ CLEAN JSON ------------
+function cleanJSON(str: string) {
+  return str
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .replace(/\n/g, " ")
+    .trim();
 }
 
 export async function POST(req: Request) {
@@ -42,55 +64,62 @@ export async function POST(req: Request) {
 
     const candidateId = candidateIdRaw?.trim();
 
-    // Validate IDs
-    if (!candidateId) {
-      return NextResponse.json(
-        { error: "Missing candidateId" },
-        { status: 400 }
-      );
-    }
+    // Validate
+    if (!candidateId)
+      return NextResponse.json({ error: "Missing candidateId" }, { status: 400 });
 
-    if (!interviewId) {
-      return NextResponse.json(
-        { error: "Missing interviewId" },
-        { status: 400 }
-      );
-    }
+    if (!interviewId)
+      return NextResponse.json({ error: "Missing interviewId" }, { status: 400 });
 
-    if (!file) {
-      return NextResponse.json(
-        { error: "Resume file missing" },
-        { status: 400 }
-      );
-    }
+    if (!file)
+      return NextResponse.json({ error: "Resume file missing" }, { status: 400 });
 
-    // Convert PDF → text
+    // Extract Resume Text Safely
     const buffer = Buffer.from(await file.arrayBuffer());
-    const resumeText = await extractPdfText(buffer);
+    let resumeText = await extractPdfText(buffer);
 
-    // Fetch interview
+    if (!resumeText || resumeText.length < 10) {
+      resumeText = "Resume parsing failed or text is empty.";
+    }
+
+    // Fetch Job Description
     const job = await db.query.interview.findFirst({
       where: (i, { eq }) => eq(i.id, interviewId),
     });
 
     if (!job) {
-      return NextResponse.json({ error: "Interview not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Interview not found" },
+        { status: 404 }
+      );
     }
 
-    // ------------ AI PROMPT ------------
+    // ------------ SINGLE AI CALL ------------
     const prompt = `
-Return ONLY JSON strictly like this:
+You are an expert resume evaluator and technical interviewer.
+
+Return ONLY valid JSON in the EXACT STRUCTURE below:
 
 {
-  "overallScore": 0.0,
-  "toneStyle": { "score": 0.0, "strengths": [], "improvements": [] },
-  "content": { "score": 0.0, "strengths": [], "improvements": [] },
-  "structure": { "score": 0.0, "strengths": [], "improvements": [] },
-  "skills": { "score": 0.0, "strengths": [], "improvements": [] },
-  "ats": { "score": 0.0, "recommendedKeywords": [] }
+  "evaluation": {
+    "overallScore": 0.0,
+    "toneStyle": { "score": 0.0, "strengths": [], "improvements": [] },
+    "content": { "score": 0.0, "strengths": [], "improvements": [] },
+    "structure": { "score": 0.0, "strengths": [], "improvements": [] },
+    "skills": { "score": 0.0, "strengths": [], "improvements": [] },
+    "ats": { "score": 0.0, "recommendedKeywords": [] }
+  },
+  "questions": [
+    { "question": "" }
+  ]
 }
 
-Scores MUST be between 0.0 and 1.0.
+Rules:
+- ONLY JSON. No markdown. No explanations.
+- evaluation = exactly the structure above, scores 0.0–1.0.
+- questions MUST BE EXACTLY 5 objects.
+- Each object MUST be: { "question": "..." }
+- Questions must be personalized based on resume & job description.
 
 Job Description:
 ${job.jobDescription}
@@ -112,12 +141,13 @@ ${resumeText}
       contents: [{ role: "user", parts: [{ text: prompt }] }],
     });
 
-    let raw = aiResult.response?.candidates?.[0]?.content?.parts?.[0]?.text;
-    raw = raw?.replace(/```json/gi, "").replace(/```/g, "").trim();
+    let raw = cleanJSON(
+      aiResult.response?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}"
+    );
 
-    let json: any = {};
+    let parsed: any = {};
     try {
-      json = JSON.parse(raw);
+      parsed = JSON.parse(raw);
     } catch (err) {
       console.log("JSON Parse Error:", raw);
       return NextResponse.json(
@@ -126,49 +156,29 @@ ${resumeText}
       );
     }
 
-    // ------------ Generate 5 Questions ------------
-    const questionPrompt = `
-Generate EXACTLY 5 interview questions based on this resume.
-Return ONLY a JSON array.
+    // Extract evaluation + questions
+    const json = parsed.evaluation;
+    const parsedQuestions = Array.isArray(parsed.questions)
+      ? parsed.questions
+      : [];
 
-Resume:
-${resumeText}
-`;
-
-    const questionResult = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: questionPrompt }] }],
-    });
-
-    let qRaw =
-      questionResult.response?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-    qRaw = qRaw.replace(/```json/gi, "").replace(/```/g, "").trim();
-
-    let parsedQuestions: string[] = [];
-    try {
-      parsedQuestions = JSON.parse(qRaw);
-    } catch (err) {
-      console.log("Question JSON Parse Error:", qRaw);
-      parsedQuestions = [];
-    }
-
-    // ------------ SAVE QUESTIONS (FIXED) ------------
+    // ------------ SAVE QUESTIONS ------------
     await db.insert(resumeQuestions).values({
       id: randomUUID(),
-      candidateId: candidateId!,   // FIXED
-      interviewId: interviewId!,   // FIXED
+      candidateId: candidateId!,
+      interviewId: interviewId!,
       questions: parsedQuestions,
     });
 
-    // ------------ FIX SCORE SCALING ------------
+    // ------------ SAVE FEEDBACK ------------
     const scale = (n: number) => Math.round(Number(n) * 100);
 
     const feedbackId = randomUUID();
 
     await db.insert(feedback).values({
       id: feedbackId,
-      candidateId: candidateId!,  // FIXED
-      interviewId: interviewId!,  // FIXED
+      candidateId: candidateId!,
+      interviewId: interviewId!,
       overallScore: scale(json.overallScore),
       toneStyleScore: scale(json.toneStyle.score),
       contentScore: scale(json.content.score),
@@ -182,6 +192,7 @@ ${resumeText}
       success: true,
       feedbackId,
     });
+
   } catch (err) {
     console.log("Resume API Error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
