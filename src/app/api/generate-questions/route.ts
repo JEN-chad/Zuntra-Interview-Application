@@ -82,7 +82,8 @@ export async function POST(request: Request) {
       );
 
       const aiResponse = await generateAIContent(prompt);
-      return NextResponse.json(normalizeToType2(aiResponse));
+      return NextResponse.json(normalizeToType2(aiResponse, interviewTypes));
+
     }
 
     // -------------------- CASE B: application/json --------------------
@@ -107,8 +108,9 @@ export async function POST(request: Request) {
         String(experienceLevel)
       );
 
-      const aiResponse = await generateAIContent(prompt);
-      return NextResponse.json(normalizeToType2(aiResponse));
+     const aiResponse = await generateAIContent(prompt);
+    return NextResponse.json(normalizeToType2(aiResponse));
+
     }
 
     return NextResponse.json(
@@ -230,12 +232,50 @@ async function generateAIContent(prompt: string) {
 //                        NORMALIZER
 // ====================================================================
 
-function normalizeToType2(aiResponse: any) {
+// function normalizeToType2(aiResponse: any) {
+//   const output: { questions: { question: string; type: string }[] } = {
+//     questions: [],
+//   };
+
+//   if (!aiResponse || !aiResponse.questions) return output;
+
+//   // Case: AI already returned an array [{question}]
+//   if (Array.isArray(aiResponse.questions)) {
+//    output.questions = aiResponse.questions
+//   .filter((q: any) => q?.question)
+//   .map((q: any) => ({
+//     question: String(q.question).trim(),
+//     type: String(q.type || "").trim(),
+//   }));
+
+//     return output;
+//   }
+
+//   // Fallback for object format
+//   Object.entries(aiResponse.questions).forEach(([_, list]) => {
+//     if (Array.isArray(list)) {
+//       list.forEach((q) => {
+//         if (q && typeof q === "string" && q.trim()) {
+//           output.questions.push({ question: q.trim(), type: "" });
+//         }
+//       });
+//     }
+//   });
+
+//   return output;
+// }
+
+function normalizeToType2(aiResponse: any, selectedTypes?: string[]) {
   const output: { questions: { question: string; type: string }[] } = {
     questions: [],
   };
 
   if (!aiResponse || !aiResponse.questions) return output;
+
+  const singleType =
+    Array.isArray(selectedTypes) && selectedTypes.length === 1
+      ? selectedTypes[0]
+      : "";
 
   // Case: AI already returned an array [{question}]
   if (Array.isArray(aiResponse.questions)) {
@@ -243,8 +283,9 @@ function normalizeToType2(aiResponse: any) {
       .filter((q: any) => q?.question)
       .map((q: any) => ({
         question: String(q.question).trim(),
-        type: "", // Always blank for user to select manually
+        type: singleType ? singleType : String(q.type || "").trim(),
       }));
+
     return output;
   }
 
@@ -253,7 +294,10 @@ function normalizeToType2(aiResponse: any) {
     if (Array.isArray(list)) {
       list.forEach((q) => {
         if (q && typeof q === "string" && q.trim()) {
-          output.questions.push({ question: q.trim(), type: "" });
+          output.questions.push({
+            question: q.trim(),
+            type: singleType || "",
+          });
         }
       });
     }
@@ -261,6 +305,7 @@ function normalizeToType2(aiResponse: any) {
 
   return output;
 }
+
 
 // ====================================================================
 //                        PROMPT BUILDERS

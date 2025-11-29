@@ -284,28 +284,107 @@ const FormContainer = ({
 
         {/* File Upload */}
        {/* File Upload */}
+{/* File Upload */}
 <div className="space-y-2">
   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
     Upload Questions (Optional)
   </label>
 
-  {/* NEW NOTE HERE */}
+  {/* NOTE 1: Minimum Question Requirement */}
   <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
-  <div className="mt-0.5">
-    <svg xmlns="http://www.w3.org/2000/svg" 
-         className="w-4 h-4 text-amber-600" 
-         fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M12 9v3m0 4h.01M4.93 19h14.14c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.2 16c-.77 1.33.19 3 1.73 3z" />
-    </svg>
+    <div className="mt-0.5">
+      <svg xmlns="http://www.w3.org/2000/svg"
+        className="w-4 h-4 text-amber-600"
+        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M12 9v3m0 4h.01M4.93 19h14.14c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.2 16c-.77 1.33.19 3 1.73 3z" />
+      </svg>
+    </div>
+
+    <p className="text-xs text-amber-700 leading-snug">
+      <span className="font-semibold">Important:</span>  
+      Your uploaded question file must contain at least  
+      <span className="font-bold"> 30 valid interview questions.</span>
+    </p>
   </div>
 
-  <p className="text-xs text-amber-700 leading-snug">
-    <span className="font-semibold">Important:</span> 
-    Your uploaded question file must contain at least 
-    <span className="font-bold"> 30 valid interview questions.</span>
-  </p>
+  {/* NOTE 2: "Questions Only" Guideline */}
+  <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+    <div className="mt-0.5">
+      <svg xmlns="http://www.w3.org/2000/svg"
+        className="w-4 h-4 text-blue-600"
+        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M12 8v4m0 4h.01M4 6h16M4 18h16M4 12h16" />
+      </svg>
+    </div>
+
+    <p className="text-xs text-blue-700 leading-snug">
+      <span className="font-semibold">Note:</span>  
+      The file must contain <span className="font-bold">questions only</span> —  
+      no descriptions, answers, explanations, or paragraphs.
+    </p>
+  </div>
+
+  {/* Sample File Download */}
+{/* Sample File Download */}
+{/* Sample File Download */}
+<div className="flex items-center gap-2 mt-1 text-xs text-slate-600 pl-1">
+
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    className="w-4 h-4 text-blue-600" 
+    fill="none" 
+    viewBox="0 0 24 24" 
+    stroke="currentColor"
+  >
+    <path 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      strokeWidth={2} 
+      d="M12 5v14m7-7H5" 
+    />
+  </svg>
+
+  <button
+    type="button"
+    onClick={async () => {
+      const { Document, Packer, Paragraph } = await import("docx");
+
+      // ❗FIX — file-saver default export
+      const saveAs = (await import("file-saver")).default;
+
+      const questions = [
+  "1. Can you briefly introduce yourself and walk me through your professional background?",
+  "2. What are the key strengths you bring to this role, and how have you demonstrated them in past projects?",
+  "3. Describe a challenging situation you faced at work and how you handled it.",
+  "4. Can you explain a project you are most proud of and the impact it created?",
+  "5. How do you approach problem-solving when you encounter an unexpected issue?",
+  "6. Tell me about a time you had to collaborate with a team — what was your role and contribution?",
+  "7. How do you prioritize tasks when managing multiple deadlines?",
+  "8. Describe a situation where you received critical feedback. How did you respond?",
+  "9. What motivates you in a professional environment, and what kind of work culture helps you perform best?",
+  "10. Why are you interested in this position, and how do you see yourself growing in this role?",
+];
+
+      const doc = new Document({
+        sections: [
+          {
+            children: questions.map(q => new Paragraph(q)),
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, "sample-interview-questions.docx");
+    }}
+    className="text-blue-600 hover:underline hover:text-blue-800 transition"
+  >
+    Download sample question file (.docx)
+  </button>
 </div>
+
+
 
 
   {!formData.file ? (
@@ -345,6 +424,7 @@ const FormContainer = ({
     </div>
   )}
 </div>
+
 
 
       </div>

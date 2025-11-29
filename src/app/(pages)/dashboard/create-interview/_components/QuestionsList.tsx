@@ -50,7 +50,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
   const [editedText, setEditedText] = useState("");
   const [editedTag, setEditedTag] = useState("");
 
-  // 🔴 Refs for auto-scroll to first untagged question
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const generateAiInterviewQuestions = useCallback(async () => {
@@ -90,6 +89,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
 
       const data = await response.json();
 
+      // ⬅️ FIX APPLIED HERE — preserve AI-generated types
       if (Array.isArray(data.questions) && data.questions.length > 0) {
         setQuestions(data.questions);
         toast.success("✅ Questions generated successfully!");
@@ -111,7 +111,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
     }
   }, [formData, generateAiInterviewQuestions]);
 
-  // 🚫 Finish Handler With Validation
   const handleFinish = async () => {
     if (loading) return;
 
@@ -125,13 +124,11 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
       return;
     }
 
-    // ❗ VALIDATION — check empty tags
     const firstUntagged = questions.findIndex((q) => !q.type.trim());
 
     if (firstUntagged !== -1) {
       toast.error("Please assign a tag to all questions before finishing.");
 
-      // 🔴 Scroll to first untagged question
       const ref = questionRefs.current[firstUntagged];
       if (ref) {
         ref.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -206,7 +203,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
     toast.success("Question updated!");
   };
 
-  // 🔵 Loading UI
   if (loading) {
     return (
       <div className="w-full bg-white rounded-xl shadow-md border border-slate-200 mt-6">
@@ -215,7 +211,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
     );
   }
 
-  // ❌ Error UI
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 p-8 rounded-2xl mt-6 shadow-sm text-red-700">
@@ -243,8 +238,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
 
   return (
     <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden mt-6">
-      {/* Header */}
-      {/* Header */}
+      {/* HEADER */}
       <div className="px-8 py-6 border-b bg-slate-50 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-100 text-blue-700 rounded-lg shadow-sm">
@@ -270,8 +264,8 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
         </span>
       </div>
 
-      {/* IMPORTANT WARNING FOR FILE UPLOADS */}
-      {formData.file && (
+      {/* WARNING */}
+      {formData.file && questions.some((q) => !q.type?.trim()) && (
         <div className="mx-8 mt-5 mb-3 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm leading-relaxed">
           <strong className="font-semibold">Important:</strong>
           These questions were extracted from your uploaded file. Please review
@@ -279,7 +273,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
         </div>
       )}
 
-      {/* Question List */}
+      {/* QUESTION LIST */}
       <div className="p-8 space-y-4">
         {questions.map((item, idx) => {
           const isMissingTag = !item.type?.trim();
@@ -287,7 +281,9 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
           return (
             <div
               key={idx}
-              ref={(el) => (questionRefs.current[idx] = el)}
+              ref={(el) => {
+                questionRefs.current[idx] = el;
+              }}
               className={`group relative p-5 border rounded-xl bg-white transition-all ${
                 isMissingTag
                   ? "border-red-400 bg-red-50/50"
@@ -295,7 +291,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
               }`}
             >
               <div className="flex justify-between items-start gap-4">
-                {/* LEFT CONTENT */}
                 <div className="flex-1 space-y-3">
                   {editingIndex === idx ? (
                     <>
@@ -306,7 +301,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
                         rows={3}
                       />
 
-                      {/* Tag Select */}
                       <select
                         value={editedTag}
                         onChange={(e) => setEditedTag(e.target.value)}
@@ -346,7 +340,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
                   )}
                 </div>
 
-                {/* RIGHT BUTTONS */}
                 <div className="flex flex-col gap-2 items-center">
                   {editingIndex !== idx && (
                     <button
@@ -386,7 +379,6 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
         })}
       </div>
 
-      {/* Footer */}
       <div className="px-8 py-6 bg-slate-50 border-t flex justify-between flex-col sm:flex-row gap-3">
         {!formData.file && (
           <Button
