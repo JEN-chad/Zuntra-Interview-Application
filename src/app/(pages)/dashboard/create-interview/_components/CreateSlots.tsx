@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Calendar,
   Users,
@@ -14,8 +14,8 @@ import {
 
 interface CreateSlotsProps {
   interviewId: string;
-  duration: string; // e.g. "30 Min"
-  onDone: () => void;
+  duration: string;
+  onDone: (from: string, to: string) => void;
   onBack: () => void;
 }
 
@@ -35,12 +35,11 @@ export default function CreateSlots({
   onDone,
   onBack,
 }: CreateSlotsProps) {
-  // form
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
   const [capacity, setCapacity] = useState("5");
 
-  // time (12-hour)
   const [startHour, setStartHour] = useState("09");
   const [startMinute, setStartMinute] = useState("00");
   const [startPeriod, setStartPeriod] = useState("AM");
@@ -54,66 +53,29 @@ export default function CreateSlots({
   const [previewSlots, setPreviewSlots] = useState<
     { start: Date; end: Date }[]
   >([]);
+
   const [saving, setSaving] = useState(false);
 
-  // --------------------------------------------
-  // Slot duration = base + 5 minutes buffer
-  // --------------------------------------------
-  const baseDuration = Number(duration.replace(" Min", "")) || 30;
-  const slotDuration = baseDuration + 5;
+  // ALWAYS warn unless saved
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(true);
 
-  // Helpers
-  const convertTo24 = (hour: string, minute: string, period: string) => {
-    let h = parseInt(hour, 10);
-    if (period === "PM" && h !== 12) h += 12;
-    if (period === "AM" && h === 12) h = 0;
-    return `${h.toString().padStart(2, "0")}:${minute}`;
-  };
+  const today = new Date().toISOString().split("T")[0];
 
-  const toISODate = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${dd}`;
-  };
+  // ----------------------------------------------------
+  // ⭐ FIX — Prevent RESET running on mount
+  // ----------------------------------------------------
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
-  const toggleWorkingDay = (dayNum: number) => {
-    setWorkingDays((prev) =>
-      prev.includes(dayNum) ? prev.filter((d) => d !== dayNum) : [...prev, dayNum]
-    );
-  };
-
-  // --------------------------------------------
-  // Validation
-  // --------------------------------------------
-  const isFormValid = useMemo(() => {
-    if (
-      !dateFrom ||
-      !dateTo ||
-      !startHour ||
-      !startMinute ||
-      !startPeriod ||
-      !endHour ||
-      !endMinute ||
-      !endPeriod ||
-      !capacity
-    ) {
-      return false;
-    }
-
-    const from = new Date(`${dateFrom}T00:00`);
-    const to = new Date(`${dateTo}T00:00`);
-    if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) return false;
-
-    if (!workingDays || workingDays.length === 0) return false;
-
-    const start24 = convertTo24(startHour, startMinute, startPeriod);
-    const end24 = convertTo24(endHour, endMinute, endPeriod);
-    const startTime = new Date(`${dateFrom}T${start24}`);
-    const endTime = new Date(`${dateFrom}T${end24}`);
-    if (startTime >= endTime) return false;
-
-    return true;
+  // ----------------------------------------------------
+  // ⭐ RESET preview slots when ANY form input changes
+  //    BUT DO NOT RESET ON FIRST RENDER
+  // ----------------------------------------------------
+  useEffect(() => {
+    if (!isMounted) return;
+    setPreviewSlots([]);
   }, [
     dateFrom,
     dateTo,
@@ -125,11 +87,83 @@ export default function CreateSlots({
     endPeriod,
     capacity,
     workingDays,
+    isMounted,
   ]);
 
-  // --------------------------------------------
-  // Generate slots (sorted!)
-  // --------------------------------------------
+  // ----------------------------------------------------
+  // ⭐ Before unload
+  // ----------------------------------------------------
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) return;
+      e.preventDefault();
+      e.returnValue = "";
+      return "";
+    };
+
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsavedChanges]);
+
+  const handleBackClick = () => {
+    if (hasUnsavedChanges) {
+      if (!confirm("You have unsaved changes. Leave anyway?")) return;
+    }
+    onBack();
+  };
+
+  // Slot duration
+  const baseDuration = Number(duration.replace(" Min", "")) || 30;
+  const slotDuration = baseDuration + 5;
+
+  const convertTo24 = (hour: string, minute: string, period: string) => {
+    let h = parseInt(hour, 10);
+    if (period === "PM" && h !== 12) h += 12;
+    if (period === "AM" && h === 12) h = 0;
+    return `${String(h).padStart(2, "0")}:${minute}`;
+  };
+
+  const toISODate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(d.getDate()).padStart(2, "0")}`;
+
+  const toggleWorkingDay = (dayNum: number) => {
+    setWorkingDays((prev) =>
+      prev.includes(dayNum)
+        ? prev.filter((d) => d !== dayNum)
+        : [...prev, dayNum]
+    );
+  };
+
+  const isFormValid = useMemo(() => {
+    if (!dateFrom || !dateTo) return false;
+
+    const from = new Date(`${dateFrom}T00:00`);
+    const to = new Date(`${dateTo}T00:00`);
+    if (from > to) return false;
+
+    if (!workingDays.length) return false;
+
+    const start24 = convertTo24(startHour, startMinute, startPeriod);
+    const end24 = convertTo24(endHour, endMinute, endPeriod);
+
+    return (
+      new Date(`${dateFrom}T${start24}`) < new Date(`${dateFrom}T${end24}`)
+    );
+  }, [
+    dateFrom,
+    dateTo,
+    startHour,
+    startMinute,
+    startPeriod,
+    endHour,
+    endMinute,
+    endPeriod,
+    workingDays,
+  ]);
+
   const handleGenerate = () => {
     if (!isFormValid) return;
 
@@ -139,47 +173,32 @@ export default function CreateSlots({
     const startDate = new Date(`${dateFrom}T00:00`);
     const endDate = new Date(`${dateTo}T00:00`);
 
-    const allSlots: { start: Date; end: Date }[] = [];
+    const slots: { start: Date; end: Date }[] = [];
 
-    for (
-      let d = new Date(startDate);
-      d <= endDate;
-      d.setDate(d.getDate() + 1)
-    ) {
-      const dayNum = d.getDay();
-      if (!workingDays.includes(dayNum)) continue;
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      if (!workingDays.includes(d.getDay())) continue;
 
-      const isoDay = toISODate(d);
-      const dayStart = new Date(`${isoDay}T${start24}`);
-      const dayEnd = new Date(`${isoDay}T${end24}`);
-
-      if (dayStart >= dayEnd) continue;
+      const day = toISODate(d);
+      const dayStart = new Date(`${day}T${start24}`);
+      const dayEnd = new Date(`${day}T${end24}`);
 
       let cursor = new Date(dayStart);
+
       while (cursor < dayEnd) {
         const slotEnd = new Date(cursor.getTime() + slotDuration * 60000);
         if (slotEnd > dayEnd) break;
 
-        allSlots.push({ start: new Date(cursor), end: slotEnd });
-
+        slots.push({ start: new Date(cursor), end: slotEnd });
         cursor = slotEnd;
       }
     }
 
-    // ✅ Always sort chronologically (start ascending)
-    const sorted = allSlots.sort((a, b) => a.start.getTime() - b.start.getTime());
-
-    setPreviewSlots(sorted);
+    setPreviewSlots(slots);
   };
 
-  // --------------------------------------------
-  // Save ALL slots as JSON array
-  // --------------------------------------------
   const saveSlots = async () => {
-    if (!previewSlots.length) {
-      alert("No slots to save. Generate slots first.");
-      return;
-    }
+    if (!previewSlots.length) return alert("Generate slots first.");
+
     setSaving(true);
 
     try {
@@ -187,38 +206,33 @@ export default function CreateSlots({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          slots: previewSlots
-          .sort((a, b) => a.start.getTime() - b.start.getTime())
-          .map((s) => ({
-          start: new Date(s.start).toISOString(),
-          end: new Date(s.end).toISOString(),
-          capacity: Number(capacity),
-        })),
-
+          slots: previewSlots.map((s) => ({
+            start: s.start.toISOString(),
+            end: s.end.toISOString(),
+            capacity: Number(capacity),
+          })),
         }),
       });
 
-      setSaving(false);
-
       if (res.ok) {
-        window.location.href = "/dashboard";
+        await fetch(`/api/interview/${interviewId}/mark-complete`, {
+          method: "POST",
+        });
+
+        setHasUnsavedChanges(false);
+        onDone(dateFrom, dateTo);
       } else {
-        const json = await res.json().catch(() => ({}));
-        alert(json.error || "Failed to save slots");
+        alert("Failed to save");
       }
-    } catch (err) {
+    } finally {
       setSaving(false);
-      console.error(err);
-      alert("Failed to save slots");
     }
   };
 
-  // --------------------------------------------
-  // UI
-  // --------------------------------------------
   return (
-    <div className="min-h-screen bg-gray-50  flex justify-center font-sans text-slate-800">
+    <div className="min-h-screen bg-gray-50 flex justify-center font-sans text-slate-800">
       <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+
         {/* Header */}
         <div className="px-10 pt-10 pb-6 border-b border-gray-100">
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">
@@ -230,48 +244,46 @@ export default function CreateSlots({
         </div>
 
         {/* Content */}
-        <div className="px-10 py-10 space-y-8">
-          {/* Info */}
+        <div className="px-10 py-6 space-y-8">
+
+          {/* Info Box */}
           <div className="flex items-start gap-3 bg-blue-50 p-4 rounded-xl border border-blue-100">
             <Info className="w-5 h-5 text-blue-600 shrink-0" />
             <div className="text-sm leading-relaxed">
-              <p className="font-semibold text-blue-900">Configuration Context</p>
+              <p className="font-semibold text-blue-900">Slot Configuration Summary</p>
               <p className="text-blue-700 mt-1">
-                Slot duration is locked at{" "}
-                <span className="font-semibold">{slotDuration} minutes</span>{" "}
-                (selected interview duration + 5 min buffer).
+                Each interview slot includes a{" "}
+                <span className="font-semibold">{slotDuration}-minute duration</span>,
+                covering interview time plus processing buffer.
               </p>
             </div>
           </div>
 
-          {/* Date Range + Capacity */}
+          {/* Date + Time + Capacity */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
             {/* Start Date */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Start Date</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 bg-white border border-slate-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
+              <input
+                type="date"
+                min={today}
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="block w-full pl-3 pr-3 py-3 border rounded-lg"
+              />
             </div>
 
             {/* End Date */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">End Date</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 bg-white border border-slate-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
+              <input
+                type="date"
+                min={dateFrom || today}
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="block w-full pl-3 pr-3 py-3 border rounded-lg"
+              />
             </div>
 
             {/* Capacity */}
@@ -282,7 +294,7 @@ export default function CreateSlots({
                 <select
                   value={capacity}
                   onChange={(e) => setCapacity(e.target.value)}
-                  className="block w-full pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-lg shadow-sm appearance-none cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="block w-full pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-lg shadow-sm appearance-none cursor-pointer"
                 >
                   <option value="5">5 Candidates</option>
                   <option value="10">10 Candidates</option>
@@ -297,30 +309,30 @@ export default function CreateSlots({
               <label className="text-sm font-semibold text-slate-700">Start Time</label>
               <div className="flex items-center gap-2">
                 <select
+                  className="p-3 border rounded-lg"
                   value={startHour}
                   onChange={(e) => setStartHour(e.target.value)}
-                  className="p-3 rounded-lg border border-slate-200 bg-white shadow-sm"
                 >
                   {Array.from({ length: 12 }, (_, i) =>
-                    (i + 1).toString().padStart(2, "0")
+                    String(i + 1).padStart(2, "0")
                   ).map((h) => (
                     <option key={h}>{h}</option>
                   ))}
                 </select>
                 :
                 <select
+                  className="p-3 border rounded-lg"
                   value={startMinute}
                   onChange={(e) => setStartMinute(e.target.value)}
-                  className="p-3 rounded-lg border border-slate-200 bg-white shadow-sm"
                 >
                   {["00", "15", "30", "45"].map((m) => (
                     <option key={m}>{m}</option>
                   ))}
                 </select>
                 <select
+                  className="p-3 border rounded-lg"
                   value={startPeriod}
                   onChange={(e) => setStartPeriod(e.target.value)}
-                  className="p-3 rounded-lg border border-slate-200 bg-white shadow-sm"
                 >
                   <option>AM</option>
                   <option>PM</option>
@@ -333,30 +345,30 @@ export default function CreateSlots({
               <label className="text-sm font-semibold text-slate-700">End Time</label>
               <div className="flex items-center gap-2">
                 <select
+                  className="p-3 border rounded-lg"
                   value={endHour}
                   onChange={(e) => setEndHour(e.target.value)}
-                  className="p-3 rounded-lg border border-slate-200 bg-white shadow-sm"
                 >
                   {Array.from({ length: 12 }, (_, i) =>
-                    (i + 1).toString().padStart(2, "0")
+                    String(i + 1).padStart(2, "0")
                   ).map((h) => (
                     <option key={h}>{h}</option>
                   ))}
                 </select>
                 :
                 <select
+                  className="p-3 border rounded-lg"
                   value={endMinute}
                   onChange={(e) => setEndMinute(e.target.value)}
-                  className="p-3 rounded-lg border border-slate-200 bg-white shadow-sm"
                 >
                   {["00", "15", "30", "45"].map((m) => (
                     <option key={m}>{m}</option>
                   ))}
                 </select>
                 <select
+                  className="p-3 border rounded-lg"
                   value={endPeriod}
                   onChange={(e) => setEndPeriod(e.target.value)}
-                  className="p-3 rounded-lg border border-slate-200 bg-white shadow-sm"
                 >
                   <option>AM</option>
                   <option>PM</option>
@@ -393,31 +405,28 @@ export default function CreateSlots({
 
           {/* Preview */}
           {previewSlots.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <h3 className="text-lg font-semibold text-slate-900">
                 Preview Slots ({previewSlots.length})
               </h3>
 
-              <div className="grid grid-cols-1 gap-2">
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200 p-3 space-y-2 bg-slate-50">
                 {previewSlots.map((slot, idx) => (
                   <div
                     key={idx}
-                    className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between"
+                    className="p-3 bg-white border border-slate-200 rounded-lg flex justify-between"
                   >
-                    <div className="text-sm">
-                      <div className="font-medium">
-                        {slot.start.toLocaleDateString()}{" "}
-                        <span className="text-slate-500 text-xs">•</span>{" "}
-                        {slot.start.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}{" "}
-                        →{" "}
-                        {slot.end.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
+                    <div className="text-sm font-medium">
+                      {slot.start.toLocaleDateString()} •{" "}
+                      {slot.start.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}{" "}
+                      →{" "}
+                      {slot.end.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </div>
                     <div className="text-sm font-medium text-blue-600">
                       Capacity: {capacity}
@@ -429,56 +438,40 @@ export default function CreateSlots({
           )}
 
           {/* Actions */}
-          <div className="pt-6 flex items-center justify-between border-t border-gray-100">
-            <button
-              onClick={onBack}
-              className="flex items-center text-slate-500 hover:text-slate-800 font-medium text-sm group"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
-              Back to Settings
+          <div className="pt-6 flex items-center justify-between border-t">
+            <button onClick={handleBackClick} className="flex items-center gap-1">
+              <ArrowLeft className="w-4 h-4" /> Back
             </button>
 
-            <div className="flex items-center gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={handleGenerate}
                 disabled={!isFormValid}
-                className={`flex items-center px-6 py-3 rounded-lg text-white font-semibold transition ${
-                  isFormValid
-                    ? "bg-blue-600 hover:bg-blue-700 shadow-md"
-                    : "bg-slate-200 text-slate-500 cursor-not-allowed"
-                }`}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Generate Slots
+                <Plus className="w-4 h-4 inline mr-2" /> Generate
               </button>
 
-              <button
-                onClick={saveSlots}
-                disabled={saving || !previewSlots.length}
-                className={`
-                  group flex items-center px-6 py-3 rounded-lg font-semibold transition-all border 
-                  ${
-                    previewSlots.length && !saving
-                      ? "bg-white text-slate-800 border-blue-500 hover:bg-green-600 hover:text-white hover:border-green-600 shadow-sm"
-                      : "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
-                  }
-                `}
-              >
-                {saving ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin text-blue-600" />
-                ) : (
-                  <CheckCircle2
-                    className={`
-                      w-4 h-4 mr-2 transition-colors
-                      text-green-600
-                      group-hover:text-white
-                    `}
-                  />
-                )}
-                Save Slots
-              </button>
+             <button
+  onClick={saveSlots}
+  disabled={saving || !previewSlots.length}
+  className={`px-6 py-3 rounded-lg text-white transition ${
+    saving || !previewSlots.length
+      ? "bg-green-400 opacity-50 cursor-not-allowed"
+      : "bg-green-600 hover:bg-green-700 cursor-pointer"
+  }`}
+>
+  {saving ? (
+    <Loader2 className="w-4 h-4 animate-spin inline" />
+  ) : (
+    <CheckCircle2 className="w-4 h-4 inline mr-2" />
+  )}
+  Save Slots
+</button>
+
             </div>
           </div>
+
         </div>
       </div>
     </div>

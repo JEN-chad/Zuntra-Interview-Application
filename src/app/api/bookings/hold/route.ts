@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { interviewSlot, booking, bookingHold, candidate } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 
 const HOLD_TTL = 300; // 5 minutes
@@ -17,7 +17,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "missing_fields" }, { status: 400 });
     }
 
-    // Validate candidate
+    // ------------------------------
+    // 1. Validate candidate
+    // ------------------------------
     const cand = await db.select().from(candidate).where(eq(candidate.id, candidateId));
 
     if (!cand.length)
@@ -26,17 +28,29 @@ export async function POST(req: Request) {
     if (cand[0].interviewId !== interviewId)
       return NextResponse.json({ error: "invalid_candidate" }, { status: 403 });
 
-    // Prevent creating hold if already booked
+    // ------------------------------
+    // 2. If already booked → block hold
+    // ------------------------------
     const existingBooking = await db
       .select()
       .from(booking)
-      .where(and(eq(booking.interviewId, interviewId), eq(booking.candidateId, candidateId)));
+      .where(
+        and(
+          eq(booking.interviewId, interviewId),
+          eq(booking.candidateId, candidateId)
+        )
+      );
 
     if (existingBooking.length > 0)
       return NextResponse.json({ error: "already_booked" }, { status: 409 });
 
-    // Get slot record
-    const slotRows = await db.select().from(interviewSlot).where(eq(interviewSlot.id, slotRecordId));
+    // ------------------------------
+    // 3. Fetch the slot record
+    // ------------------------------
+    const slotRows = await db
+      .select()
+      .from(interviewSlot)
+      .where(eq(interviewSlot.id, slotRecordId));
 
     if (!slotRows.length)
       return NextResponse.json({ error: "slot_record_not_found" }, { status: 404 });
@@ -50,10 +64,16 @@ export async function POST(req: Request) {
 
     const selectedSlot = slots[slotIndex];
     const { start, end, capacity } = selectedSlot;
-
     const now = new Date();
 
-    // Confirmed bookings
+    // ------------------------------
+    // 4. CLEANUP EXPIRED HOLDS
+    // ------------------------------
+    await db.delete(bookingHold).where(lt(bookingHold.expiresAt, now));
+
+    // ------------------------------
+    // 5. Count confirmed bookings
+    // ------------------------------
     const confirmed = await db
       .select()
       .from(booking)
@@ -65,7 +85,11 @@ export async function POST(req: Request) {
         )
       );
 
-    // FIX: Correct table for holds
+    const confirmedCount = confirmed.length;
+
+    // ------------------------------
+    // 6. Count active holds
+    // ------------------------------
     const holds = await db
       .select()
       .from(bookingHold)
@@ -78,13 +102,17 @@ export async function POST(req: Request) {
       );
 
     const activeHolds = holds.filter((h) => new Date(h.expiresAt) > now).length;
-    const confirmedCount = confirmed.length;
 
+    // ------------------------------
+    // 7. Capacity check
+    // ------------------------------
     if (confirmedCount + activeHolds >= capacity) {
       return NextResponse.json({ error: "slot_full" }, { status: 409 });
     }
 
-    // Create HOLD
+    // ------------------------------
+    // 8. Create HOLD
+    // ------------------------------
     const holdId = uuid();
     const expiresAt = new Date(Date.now() + HOLD_TTL * 1000);
 

@@ -18,32 +18,38 @@ import Link from "next/link";
 
 const InterviewLink = ({
   interviewId,
-  onCreate,
+  formData,
   onReset,
 }: {
   interviewId: string;
+  formData: any; // contains slotStartDate, slotEndDate, duration, questionCount
   onReset?: () => void;
-    onCreate?: (id: string) => void;
 }) => {
   const [copied, setCopied] = useState(false);
 
-  const [details, setDetails] = useState<{
-    duration?: string;
-    questionCount?: number;
-    expiresAt?: string;
-  }>({});
+  const [details, setDetails] = useState({
+    duration: formData.duration,
+    questionCount: formData.questionCount,
+  });
 
-  // Fetch DB details
+  const { slotStartDate, slotEndDate } = formData;
+
+  // ⭐ Fetch duration + questionCount like reference file
   useEffect(() => {
-    const loadDetails = async () => {
+    async function loadDetails() {
       try {
         const res = await fetch(`/api/interview/${interviewId}/details`);
         const data = await res.json();
-        setDetails(data);
-      } catch (e) {
-        console.error(e);
+
+        setDetails((prev) => ({
+          ...prev,
+          duration: data.duration ?? prev.duration,
+          questionCount: data.questionCount ?? prev.questionCount,
+        }));
+      } catch (error) {
+        console.error("Failed to load details:", error);
       }
-    };
+    }
 
     loadDetails();
   }, [interviewId]);
@@ -68,8 +74,9 @@ const InterviewLink = ({
     )}`,
   };
 
-  const formattedExpiry = details.expiresAt
-    ? new Date(details.expiresAt).toLocaleDateString()
+  // Expiry based on end date
+  const formattedExpiry = slotEndDate
+    ? new Date(slotEndDate).toLocaleDateString()
     : "N/A";
 
   return (
@@ -89,11 +96,10 @@ const InterviewLink = ({
 
       {/* Interview Link Card */}
       <div className="w-full md:w-[600px] bg-white shadow-sm border border-gray-200 rounded-xl mt-8 p-6">
-        {/* Top Section */}
         <div className="flex justify-between items-center mb-3">
           <h3 className="font-medium text-gray-900">Interview Link</h3>
           <span className="text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">
-            Valid for 30 days
+            Valid until {formattedExpiry}
           </span>
         </div>
 
@@ -118,11 +124,13 @@ const InterviewLink = ({
 
         {/* Details */}
         <div className="flex flex-wrap items-center gap-6 text-gray-600 text-sm">
+          {/* Duration */}
           <span className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-gray-500" />
             {details.duration || "Loading..."}
           </span>
 
+          {/* Question Count */}
           <span className="flex items-center gap-2">
             <List className="h-4 w-4 text-gray-500" />
             {details.questionCount
@@ -130,6 +138,13 @@ const InterviewLink = ({
               : "Loading..."}
           </span>
 
+          {/* Date Range */}
+          <span className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-gray-500" />
+            Availability: {slotStartDate} → {slotEndDate}
+          </span>
+
+          {/* Expiry */}
           <span className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-gray-500" />
             Expires: {formattedExpiry}
@@ -165,36 +180,21 @@ const InterviewLink = ({
       </div>
 
       {/* Bottom Buttons */}
-     {/* Bottom Buttons */}
-<div className="w-full md:w-[600px] flex flex-col sm:flex-row justify-between gap-3 mt-8">
+      <div className="w-full md:w-[600px] flex flex-col sm:flex-row justify-between gap-4 mt-10">
+        {/* Back to Dashboard */}
+        <Link href={"/dashboard"} className="flex-1">
+          <Button variant="outline" className="w-full py-3">
+            ← Back to Dashboard
+          </Button>
+        </Link>
 
-  {/* Back to Dashboard */}
-  <Link href={"/dashboard"} className="flex-1">
-    <Button variant="outline" className="w-full">
-      ← Back to Dashboard
-    </Button>
-  </Link>
-
-  {/* ⭐ NEXT: GO TO SLOT CREATION (STEP 4) */}
-  <Button
-     onClick={() => onCreate?.(interviewId)}
-    className="
-      flex-1 w-full bg-blue-600 text-white hover:bg-blue-700 
-      shadow-md hover:shadow-lg transition-all duration-200
-    "
-  >
-    Next: Create Slots →
-  </Button>
-
-  {/* Create New Interview */}
-  {/* <Button
-    onClick={() => onReset?.()}
-    className="flex-1 bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
-  >
-    + Create New Interview
-  </Button> */}
-</div>
-
+        {/* Create New Interview */}
+        <Link href={"/dashboard/create-interview"} className="flex-1">
+          <Button className="w-full py-3 bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200">
+            + Create New Interview
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 };

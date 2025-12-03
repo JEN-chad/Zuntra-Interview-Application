@@ -397,7 +397,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
           disabled={loading}
           className="bg-blue-700 hover:bg-blue-800 text-white flex items-center gap-2 shadow-md"
         >
-          Finish & Generate Link <ArrowRight size={16} />
+          Finish <ArrowRight size={16} />
         </Button>
       </div>
     </div>

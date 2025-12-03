@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(req: Request, context: { params: { id: string } }) {
   try {
-    const { id: interviewId } =  await context.params;
+    const { id: interviewId } = await context.params;
     const { slots } = await req.json();
 
     if (!interviewId) {
@@ -31,7 +31,15 @@ export async function POST(req: Request, context: { params: { id: string } }) {
       );
     }
 
-    // Insert 1 row containing all slots
+    // ---------------------------------------------------------
+    // ⭐ NEW: Compute expiry date → last slot's end time
+    // ---------------------------------------------------------
+    const lastSlot = slots[slots.length - 1];
+    const expiresAt = new Date(lastSlot.end); // ISO string → Date
+
+    // ---------------------------------------------------------
+    // Insert slots into interviewSlot table
+    // ---------------------------------------------------------
     await db.insert(interviewSlot).values({
       id: uuidv4(),
       interviewId,
@@ -42,9 +50,18 @@ export async function POST(req: Request, context: { params: { id: string } }) {
       })),
     });
 
+    // ---------------------------------------------------------
+    // ⭐ NEW: Update interview expiry date
+    // ---------------------------------------------------------
+    await db
+      .update(interview)
+      .set({ expiresAt }) // save expiry
+      .where(eq(interview.id, interviewId));
+
     return NextResponse.json({
       success: true,
-      message: "Slots created successfully.",
+      message: "Slots created & expiry set successfully.",
+      expiresAt,
     });
   } catch (err) {
     console.error("CREATE SLOTS ERROR:", err);

@@ -1,0 +1,32 @@
+import { db } from "@/db";
+import { interview } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+// Route: POST /api/interview/:id/mark-complete
+export async function POST(req: Request, context: { params: { id: string } }) {
+  try {
+    const params = await context.params; // <-- FIX
+    const interviewId = params.id;
+
+    if (!interviewId) {
+      return Response.json(
+        { error: "Interview ID missing" },
+        { status: 400 }
+      );
+    }
+
+    await db
+      .update(interview)
+      .set({ status: "completed" })
+      .where(eq(interview.id, interviewId));
+
+    return Response.json({ success: true, status: "completed" });
+  } catch (error) {
+    console.error("Mark complete error:", error);
+
+    return Response.json(
+      { error: "Failed to update interview status" },
+      { status: 500 }
+    );
+  }
+}

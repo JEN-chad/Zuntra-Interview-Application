@@ -1,15 +1,15 @@
 "use client";
 
-import { Building2, Clock, Info } from "lucide-react";
+import { Building2, Clock, Info, Ban } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CheckCircle2, Briefcase } from "lucide-react";
 import { Loader2 } from "lucide-react";
 
-// ---------------------
-// LOADER COMPONENT
-// ---------------------
+// ------------------------
+// EXECUTIVE LOADER
+// ------------------------
 const ExecutiveLoader = () => {
   const [progress, setProgress] = useState(0);
   const [step, setStep] = useState(0);
@@ -23,18 +23,13 @@ const ExecutiveLoader = () => {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(timer);
-          return 100;
-        }
-        return prev + 1;
-      });
+      setProgress((prev) => (prev >= 100 ? 100 : prev + 1));
     }, 50);
 
-    const stepTimer = setInterval(() => {
-      setStep((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
-    }, 1200);
+    const stepTimer = setInterval(
+      () => setStep((prev) => (prev < steps.length - 1 ? prev + 1 : prev)),
+      1200
+    );
 
     return () => {
       clearInterval(timer);
@@ -47,7 +42,7 @@ const ExecutiveLoader = () => {
   const strokeDashoffset = circumference - (progress / 100) * circumference;
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div className="flex flex-col items-center gap-6 animate-fade-in">
       <div className="relative flex items-center justify-center w-24 h-24">
         <svg className="transform -rotate-90 w-24 h-24">
           <circle
@@ -86,51 +81,63 @@ const ExecutiveLoader = () => {
         <h3 className="text-slate-800 font-semibold tracking-tight text-lg">
           {progress === 100 ? "Ready" : "Interview Room"}
         </h3>
-        <div className="h-6 flex items-center">
-          <p className="text-sm text-slate-500 font-medium animate-fade-in-up">
-            {progress === 100 ? "Loading..." : steps[step]}
-          </p>
-        </div>
+        <p className="text-sm text-slate-500 font-medium h-6 animate-fade-in-up">
+          {progress === 100 ? "Loading..." : steps[step]}
+        </p>
       </div>
     </div>
   );
 };
 
-// ---------------------
+// ---------------------------------------------------
 // MAIN COMPONENT
-// ---------------------
+// ---------------------------------------------------
 
 export default function InterviewUI() {
   const { interview_id } = useParams();
   const router = useRouter();
 
   const [data, setData] = useState<any>(null);
+  const [expired, setExpired] = useState(false);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-
   const [otp, setOtp] = useState("");
 
   const [step, setStep] = useState<"info" | "otp" | "instructions">("info");
-
   const [loading, setLoading] = useState(false);
 
   const [verificationId, setVerificationId] = useState("");
 
-  // Load interview details
+  // ------------------------
+  // LOAD INTERVIEW DETAILS
+  // ------------------------
   useEffect(() => {
     if (!interview_id) return;
 
     async function load() {
       const res = await fetch(`/api/interview/${interview_id}`);
       const json = await res.json();
+
       setData(json);
+
+      // ------------------------
+      // EXPIRY CHECK
+      // ------------------------
+      const now = new Date();
+      const expiry = json.expiresAt ? new Date(json.expiresAt) : null;
+
+      if (expiry && now > expiry) {
+        setExpired(true);
+      }
     }
 
     load();
   }, [interview_id]);
 
+  // ------------------------
   // STEP 1 – Start verification
+  // ------------------------
   async function startVerification() {
     if (!fullName || !email) {
       alert("Enter full name and email");
@@ -154,7 +161,9 @@ export default function InterviewUI() {
     setStep("otp");
   }
 
+  // ------------------------
   // STEP 2 – Verify OTP
+  // ------------------------
   async function verifyOtp() {
     if (otp.length !== 6) {
       alert("Enter a 6 digit OTP");
@@ -187,6 +196,9 @@ export default function InterviewUI() {
     setStep("instructions");
   }
 
+  // ------------------------
+  // SHOW LOADER IF NOT READY
+  // ------------------------
   if (!data)
     return (
       <div className="h-screen flex justify-center items-center bg-gray-50">
@@ -194,10 +206,48 @@ export default function InterviewUI() {
       </div>
     );
 
+  // ------------------------
+// EXPIRED INTERVIEW UI
+// ------------------------
+if (expired) {
   return (
-    <div className="h-screen flex justify-center items-center bg-gray-100 p-4 overflow-hidden">
+    <div className="h-screen flex justify-center items-center bg-gray-100 p-6">
+      <div className="max-w-lg bg-white p-8 rounded-2xl shadow-lg border text-center animate-fade-in">
+        <div className="flex flex-col items-center gap-4">
+          <div className="bg-red-100 p-4 rounded-full">
+            <Ban className="w-10 h-10 text-red-600" />
+          </div>
+
+          <h2 className="text-2xl font-semibold text-gray-900">
+            Recruitment Closed
+          </h2>
+
+          <p className="text-gray-600 text-sm leading-relaxed">
+            The interview session for
+            <br />
+            <b className="text-gray-800">{data.jobPosition}</b>  
+            is no longer accepting candidates.
+            <br />
+            We appreciate your interest.
+          </p>
+
+          <div className="mt-4 text-gray-700 text-sm">
+            <p>Please check back later for new opportunities.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+  // ------------------------
+  // NORMAL INTERVIEW FLOW
+  // ------------------------
+  return (
+    <div className="h-screen flex justify-center items-center bg-gray-100 p-4 overflow-hidden animate-fade-in">
       <div className="w-full max-w-4xl bg-white shadow-lg rounded-2xl p-6 border flex flex-row items-center gap-6">
-        {/* LEFT */}
+
+        {/* LEFT IMAGE PANEL */}
         <div className="flex-1 flex flex-col items-center text-center p-4 border-r">
           <Image src="/logo.png" width={100} height={100} alt="Logo" />
           <p className="text-gray-500 text-sm mt-1">
@@ -212,17 +262,17 @@ export default function InterviewUI() {
           />
         </div>
 
-        {/* RIGHT */}
+        {/* RIGHT PANEL */}
         <div className="flex-1 p-6">
           <h2 className="text-lg font-semibold">{data.jobPosition}</h2>
 
           <div className="flex items-center gap-4 text-gray-500 text-xs mt-2">
             <span>
-              <Building2 className="inline w-3.5 h-3.5 mr-1" />{" "}
+              <Building2 className="inline w-3.5 h-3.5 mr-1" />
               {data.company || "Zuntra"}
             </span>
             <span>
-              <Clock className="inline w-3.5 h-3.5 mr-1" />{" "}
+              <Clock className="inline w-3.5 h-3.5 mr-1" />
               {data.duration || "30 Minutes"}
             </span>
           </div>
@@ -236,9 +286,8 @@ export default function InterviewUI() {
                   type="text"
                   className="w-full border rounded-lg px-3 py-2 mt-1"
                   value={fullName}
-                  onChange={
-                    (e) =>
-                      setFullName(e.target.value.replace(/[^A-Za-z ]/g, "")) // allow only letters & space
+                  onChange={(e) =>
+                    setFullName(e.target.value.replace(/[^A-Za-z ]/g, ""))
                   }
                 />
               </div>
@@ -279,8 +328,8 @@ export default function InterviewUI() {
 
               <input
                 type="text"
-                className="mt-3 w-full border rounded-lg px-3 py-2 text-center tracking-widest text-lg"
                 maxLength={6}
+                className="mt-3 w-full border rounded-lg px-3 py-2 text-center tracking-widest text-lg"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
               />
@@ -288,9 +337,7 @@ export default function InterviewUI() {
               <button
                 onClick={verifyOtp}
                 disabled={loading}
-                className={`w-full bg-blue-600 text-white py-2.5 rounded-lg mt-5
-                flex items-center justify-center gap-2 font-medium transition
-                disabled:opacity-60 disabled:cursor-not-allowed hover:bg-blue-700`}
+                className="w-full bg-blue-600 text-white py-2.5 rounded-lg mt-5 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -310,9 +357,7 @@ export default function InterviewUI() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-5 text-left text-sm">
                 <div className="flex items-center gap-2 mb-2">
                   <Info className="w-4 h-4 text-blue-600" />
-                  <p className="font-semibold text-blue-600">
-                    Before You Begin
-                  </p>
+                  <p className="font-semibold text-blue-600">Before You Begin</p>
                 </div>
 
                 <ul className="list-disc ml-5 text-gray-700">
