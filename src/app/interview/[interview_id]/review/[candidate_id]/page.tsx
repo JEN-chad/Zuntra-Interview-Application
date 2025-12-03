@@ -16,6 +16,8 @@ export default function ResumeReviewPage() {
   const [feedback, setFeedback] = useState<any>(null);
   const [candidate, setCandidate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+
 
   useEffect(() => {
     async function load() {
@@ -105,7 +107,7 @@ export default function ResumeReviewPage() {
         <CardContent className="space-y-8">
           {/* OVERALL SCORE */}
           <div className="text-center">
-            <p className="text-lg font-semibold mb-2">Overall Score</p>
+            <p className="text-lg font-semibold mb-2">Overall  Score</p>
             <Progress value={fb.overallScore} className="w-full" />
             <p className="mt-2 text-sm text-gray-600">
               {fb.overallScore}% match to job requirements
