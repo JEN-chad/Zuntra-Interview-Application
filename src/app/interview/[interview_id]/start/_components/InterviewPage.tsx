@@ -1,17 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 
 type QItem = { id: string; question: string; type: string };
 
-// ============================
-// CONFIG
-// ============================
-const MAIN_TIMER = 30; // time per question
-const SILENCE_TIMER = 8; // silence timeout
+const MAIN_TIMER = 30;
+const SILENCE_TIMER = 8;
 
 export default function InterviewPage({
   interviewId,
@@ -24,8 +21,9 @@ export default function InterviewPage({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(true);
-  const [callEnded, setCallEnded] = useState(false);
+
   const [started, setStarted] = useState(false);
+  const [callEnded, setCallEnded] = useState(false);
 
   const [timeLeft, setTimeLeft] = useState(MAIN_TIMER);
 
@@ -34,15 +32,15 @@ export default function InterviewPage({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const mainTimerRef = useRef<NodeJS.Timeout | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const answeredRef = useRef<Record<number, boolean>>({});
   const allAnswersRef = useRef<{ question: string; answer: string }[]>([]);
 
-  // ============================
-  // UNLOCK BROWSER AUDIO
-  // ============================
+  // Unlock audio autoplay
   useEffect(() => {
     const unlock = () => {
       const a = new Audio();
@@ -52,9 +50,7 @@ export default function InterviewPage({
     window.addEventListener("click", unlock);
   }, []);
 
-  // ============================
-  // LOAD QUESTIONS
-  // ============================
+  // Load questions
   useEffect(() => {
     const load = async () => {
       try {
@@ -70,9 +66,7 @@ export default function InterviewPage({
 
   const currentQuestion = questions[currentIndex];
 
-  // ============================
-  // START QUESTION WHEN STARTED
-  // ============================
+  // Start question when started or index changed
   useEffect(() => {
     if (loading) return;
     if (!started) return;
@@ -80,30 +74,27 @@ export default function InterviewPage({
     if (!currentQuestion) return;
 
     runQuestion();
-  }, [currentIndex, started, loading, callEnded]);
+  }, [currentIndex, loading, started, callEnded]);
 
-  // ============================
-  // FULL QUESTION FLOW
-  // ============================
-  const runQuestion = async () => {
-    stopSTT();
-    clearTimers();
-    setAnswer("");
-    setTimeLeft(MAIN_TIMER);
-
-    await speakAndWait(currentQuestion.question);
-
-    startSTT();
-    startMainTimer();
-    startSilenceTimer();
+  // --------------------------------
+  // STOP AUDIO FUNCTION
+  // --------------------------------
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
   };
 
-  // ============================
-  // TEXT TO SPEECH
-  // ============================
+  // --------------------------------
+  // TTS WITH AUTO-STOP
+  // --------------------------------
   const speakAndWait = (text: string): Promise<void> => {
     return new Promise(async (resolve) => {
       try {
+        stopAudio(); // stop old audio instantly
+
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -114,22 +105,28 @@ export default function InterviewPage({
 
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
+
         const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.volume = 1.0;
 
-        audio.volume = 1;
+        const playPromise = audio.play();
 
-        const p = audio.play();
-        if (p !== undefined) {
-          p.then(() => {
-            audio.onended = () => {
-              resolve();
-              setTimeout(() => URL.revokeObjectURL(url), 300);
-            };
-          }).catch(() => resolve());
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              audio.onended = () => {
+                resolve();
+                URL.revokeObjectURL(url);
+                audioRef.current = null;
+              };
+            })
+            .catch(() => resolve());
         } else {
           audio.onended = () => {
             resolve();
-            setTimeout(() => URL.revokeObjectURL(url), 300);
+            URL.revokeObjectURL(url);
+            audioRef.current = null;
           };
         }
       } catch {
@@ -138,12 +135,13 @@ export default function InterviewPage({
     });
   };
 
-  // ============================
-  // SPEECH TO TEXT (RAW ACCUMULATION)
-  // ============================
+  // --------------------------------
+  // STT
+  // --------------------------------
   const startSTT = async () => {
     try {
       stopSTT();
+      stopAudio();
 
       const socket = new WebSocket("ws://localhost:3001");
       wsRef.current = socket;
@@ -155,7 +153,6 @@ export default function InterviewPage({
         const recorder = new MediaRecorder(stream, {
           mimeType: "audio/webm; codecs=opus",
         });
-
         recorderRef.current = recorder;
 
         recorder.ondataavailable = (e) => {
@@ -171,8 +168,7 @@ export default function InterviewPage({
       socket.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         if (msg.text) {
-          // RAW accumulation, append everything
-          setAnswer((prev) => prev + " " + msg.text);
+          setAnswer(msg.text); // no trimming — store raw text
         }
       };
     } catch (e) {
@@ -191,9 +187,9 @@ export default function InterviewPage({
     wsRef.current = null;
   };
 
-  // ============================
+  // --------------------------------
   // TIMERS
-  // ============================
+  // --------------------------------
   const startMainTimer = () => {
     clearMainTimer();
     mainTimerRef.current = setInterval(() => {
@@ -233,23 +229,42 @@ export default function InterviewPage({
     clearSilenceTimer();
   };
 
-  // ============================
-  // AUTO SUBMIT
-  // ============================
-  const autoSubmit = async (reason: string) => {
-    if (answeredRef.current[currentIndex]) return;
-    answeredRef.current[currentIndex] = true;
+  // --------------------------------
+  // QUESTION FLOW
+  // --------------------------------
+  const runQuestion = async () => {
+    stopAudio();
+    stopSTT();
+    clearTimers();
 
-    const final =
-      answer.trim().length > 0 ? answer : `(No response - ${reason})`;
+    setAnswer("");
+    setTimeLeft(MAIN_TIMER);
 
-    await storeAnswer(final);
+    await speakAndWait(currentQuestion.question);
+
+    startSTT();
+    startMainTimer();
+    startSilenceTimer();
   };
 
-  // ============================
-  // STORE ANSWER LOCALLY
-  // ============================
+  // --------------------------------
+  // AUTOSUBMIT
+  // --------------------------------
+  const autoSubmit = async (reason: string) => {
+    if (answeredRef.current[currentIndex]) return;
+
+    answeredRef.current[currentIndex] = true;
+
+    const finalAnswer = answer.length > 0 ? answer : `(No response - ${reason})`;
+
+    await storeAnswer(finalAnswer);
+  };
+
+  // --------------------------------
+  // STORE ANSWER
+  // --------------------------------
   const storeAnswer = async (finalAnswer: string) => {
+    stopAudio();
     stopSTT();
     clearTimers();
 
@@ -267,37 +282,44 @@ export default function InterviewPage({
     }
   };
 
-  // ============================
+  // --------------------------------
   // NEXT QUESTION BUTTON
-  // ============================
+  // --------------------------------
   const skipToNext = async () => {
+    stopAudio();
     stopSTT();
     clearTimers();
 
     if (!answeredRef.current[currentIndex]) {
       answeredRef.current[currentIndex] = true;
 
-      const final =
-        answer.trim().length > 0 ? answer : "(Skipped)";
+      const finalAnswer =
+        answer.length > 0 ? answer : "(Skipped by user)";
+
       allAnswersRef.current.push({
         question: currentQuestion.question,
-        answer: final,
+        answer: finalAnswer,
       });
     }
 
     if (currentIndex + 1 >= questions.length) {
       finalSubmitAll();
-    } else {
-      setCurrentIndex((prev) => prev + 1);
-      setAnswer("");
-      setTimeLeft(MAIN_TIMER);
+      return;
     }
+
+    setCurrentIndex((prev) => prev + 1);
+    setAnswer("");
+    setTimeLeft(MAIN_TIMER);
   };
 
-  // ============================
-  // FINAL SUBMIT & EVALUATION
-  // ============================
+  // --------------------------------
+  // END INTERVIEW
+  // --------------------------------
   const finalSubmitAll = async () => {
+    stopAudio();
+    stopSTT();
+    clearTimers();
+
     try {
       await fetch(`/api/interview/${interviewId}/answers`, {
         method: "POST",
@@ -319,17 +341,16 @@ export default function InterviewPage({
       });
 
       setCallEnded(true);
-      stopSTT();
-      clearTimers();
-    } catch (e) {
-      console.error("Final submit failed:", e);
+    } catch (err) {
+      console.error("Final submit failed:", err);
     }
   };
 
-  // ============================
+  // --------------------------------
   // END CALL BUTTON
-  // ============================
+  // --------------------------------
   const endCallNow = async () => {
+    stopAudio();
     stopSTT();
     clearTimers();
     setCallEnded(true);
@@ -345,9 +366,10 @@ export default function InterviewPage({
     });
   };
 
-  // ============================
+  // --------------------------------
   // UI SCREENS
-  // ============================
+  // --------------------------------
+
   if (loading)
     return <div className="p-6 text-center text-lg">Loading questions…</div>;
 
@@ -367,7 +389,6 @@ export default function InterviewPage({
       </div>
     );
 
-  // START SCREEN
   if (!started)
     return (
       <div className="p-10 flex justify-center">
@@ -377,10 +398,9 @@ export default function InterviewPage({
               Ready to Begin Your Interview?
             </CardTitle>
           </CardHeader>
-
           <CardContent className="space-y-4">
             <p className="text-gray-600">
-              Click the button below to start. Ensure your microphone is enabled.
+              Click start when you're ready. Ensure microphone permission is allowed.
             </p>
             <Button
               onClick={() => setStarted(true)}
@@ -393,7 +413,13 @@ export default function InterviewPage({
       </div>
     );
 
+  if (!currentQuestion)
+    return <div className="p-6">No questions found.</div>;
+
+  // --------------------------------
   // MAIN INTERVIEW UI
+  // --------------------------------
+
   return (
     <div className="p-6 flex justify-center">
       <Card className="w-full max-w-2xl p-6">
