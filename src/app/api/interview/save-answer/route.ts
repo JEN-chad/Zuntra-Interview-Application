@@ -6,39 +6,33 @@ import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
+// Save all answers at the end
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { interviewId, candidateId, answers } = body;
+    const { interviewId, candidateId, answers } = await req.json();
 
     if (!interviewId || !candidateId || !Array.isArray(answers)) {
       return NextResponse.json(
-        { error: "Missing fields" },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Check if an answer record already exists for this candidate
+    // Check if exists
     const existing = await db
       .select()
       .from(interviewSession)
-      .where(
-        eq(interviewSession.candidateId, candidateId)
-      );
+      .where(eq(interviewSession.candidateId, candidateId));
 
     let saved;
 
     if (existing.length > 0) {
-      // 🔄 UPDATE existing row
       saved = await db
         .update(interviewSession)
-        .set({
-          answers: answers, // JSON array
-        })
+        .set({ answers })
         .where(eq(interviewSession.candidateId, candidateId))
         .returning();
     } else {
-      // 🆕 INSERT new row
       saved = await db
         .insert(interviewSession)
         .values({

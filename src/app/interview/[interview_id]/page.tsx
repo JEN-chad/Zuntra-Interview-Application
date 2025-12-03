@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CheckCircle2, Briefcase } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 // ---------------------
 // LOADER COMPONENT
@@ -221,7 +222,7 @@ export default function InterviewUI() {
             <>
               <div className="mt-4">
                 <label className="text-xs font-medium">Full Name</label>
-                <input
+                <Input
                   type="text"
                   className="w-full border rounded-lg px-3 py-2 mt-1"
                   value={fullName}
@@ -231,7 +232,7 @@ export default function InterviewUI() {
 
               <div className="mt-3">
                 <label className="text-xs font-medium">Email</label>
-                <input
+                <Input
                   type="email"
                   className="w-full border rounded-lg px-3 py-2 mt-1"
                   value={email}
@@ -263,7 +264,7 @@ export default function InterviewUI() {
                 Enter the 6-digit OTP sent to <b>{email}</b>
               </p>
 
-              <input
+              <Input
                 type="text"
                 className="mt-3 w-full border rounded-lg px-3 py-2 text-center tracking-widest text-lg"
                 maxLength={6}

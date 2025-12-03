@@ -6,40 +6,53 @@ const { SpeechClient } = require("@google-cloud/speech");
 
 const app = express();
 const server = createServer(app);
-
 const wss = new WebSocketServer({ server });
 
+// Google STT client
 const client = new SpeechClient({
   keyFilename: process.env.SPEECH_TO_TEXT_KEY,
 });
 
 wss.on("connection", (ws) => {
-  console.log("🎤 STT WebSocket Connected");
+  console.log("🔌 Client connected to STT server");
 
-  const recognizeStream = client
+  let recognizeStream = client
     .streamingRecognize({
       config: {
         encoding: "WEBM_OPUS",
         sampleRateHertz: 48000,
         languageCode: "en-US",
       },
-      interimResults: true,
+      interimResults: true, // Google returns interim + final
     })
     .on("data", (data) => {
       const result = data.results?.[0];
-      const transcript = result?.alternatives?.[0]?.transcript ?? "";
+      if (!result) return;
 
-      // Only send final confirmed results (removes repetition)
-      if (result?.isFinal) {
+      const transcript = result.alternatives?.[0]?.transcript?.trim() || "";
+
+      // 🔥 ONLY send FINAL RESULTS — never interim
+      if (result.isFinal && transcript.length > 0) {
+        console.log("🎤 FINAL:", transcript);
         ws.send(JSON.stringify({ text: transcript }));
       }
     })
-    .on("error", (err) => console.error("🔥 STT error:", err));
+    .on("error", (err) => {
+      console.error("🔥 STT ERROR:", err);
+      ws.send(JSON.stringify({ error: "stt_error" }));
+    });
 
-  ws.on("message", (chunk) => recognizeStream.write(chunk));
-  ws.on("close", () => recognizeStream.end());
+  ws.on("message", (msg) => {
+    // Forward raw audio chunks to Google
+    if (recognizeStream) recognizeStream.write(msg);
+  });
+
+  ws.on("close", () => {
+    console.log("❌ STT connection closed");
+    if (recognizeStream) recognizeStream.end();
+  });
 });
 
 server.listen(3001, () => {
-  console.log("🚀 STT Server running on ws://localhost:3001");
+  console.log("🚀 STT server running at ws://localhost:3001");
 });

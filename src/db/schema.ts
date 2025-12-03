@@ -11,6 +11,7 @@ import {
 
 export const userRole = pgEnum("user_role", ["admin", "client"]);
 
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -183,3 +184,29 @@ export const resumeQuestions = pgTable("resume_questions", {
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+
+export const interviewSession = pgTable("interview_session", {
+  id: text("id").primaryKey(),
+
+  candidateId: text("candidate_id")
+    .notNull()
+    .references(() => candidate.id, { onDelete: "cascade" }),
+
+  interviewId: text("interview_id")
+    .notNull()
+    .references(() => interview.id, { onDelete: "cascade" }),
+
+  // All question + answer pairs
+  answers: jsonb("answers").notNull(),
+
+  // Full structured evaluation JSON
+  evaluation: jsonb("evaluation"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+
+
+
+
