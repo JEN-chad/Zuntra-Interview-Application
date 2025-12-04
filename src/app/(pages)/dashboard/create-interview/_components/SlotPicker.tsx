@@ -46,14 +46,18 @@ export default function SlotPicker({
   // --------------------------------------------------------
   // FILTER FUTURE SLOTS
   // --------------------------------------------------------
-  const filterFutureSlots = (slots: Slot[]) => {
-    const now = new Date();
+const filterFutureSlots = (slots: Slot[]) => {
+  const now = new Date();
 
-    return slots.filter((slot) => {
-      const endTime = new Date(slot.end);
-      return endTime > now; // Keep only future slots
-    });
-  };
+  return slots.filter((slot) => {
+    const startTime = new Date(slot.start);
+    const cutoff = new Date(startTime.getTime() - 15 * 60 * 1000); // 15-minute before start
+
+    // Only show slot if we are BEFORE the cutoff
+    return now < cutoff;
+  });
+};
+
 
   // Live auto-refresh every 30 seconds
   useEffect(() => {
