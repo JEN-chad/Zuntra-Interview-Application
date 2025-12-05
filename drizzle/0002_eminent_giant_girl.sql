@@ -1,1 +1,0 @@
-ALTER TABLE "email_verification" ADD CONSTRAINT "email_verification_id_candidate_id_fk" FOREIGN KEY ("id") REFERENCES "public"."candidate"("id") ON DELETE cascade ON UPDATE no action;

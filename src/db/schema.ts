@@ -265,6 +265,27 @@ export const bookingHold = pgTable("booking_hold", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const interviewSession = pgTable("interview_session", {
+  id: text("id").primaryKey(),
+
+  candidateId: text("candidate_id")
+    .notNull()
+    .references(() => candidate.id, { onDelete: "cascade" }),
+
+  interviewId: text("interview_id")
+    .notNull()
+    .references(() => interview.id, { onDelete: "cascade" }),
+
+  // All question + answer pairs
+  answers: jsonb("answers").notNull(),
+
+  // Full structured evaluation JSON
+  evaluation: jsonb("evaluation"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+
 
 // export const calendarConnection = pgTable("calendar_connection", {
 //   id: text("id").primaryKey(),
