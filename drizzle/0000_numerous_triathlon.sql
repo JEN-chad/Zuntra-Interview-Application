@@ -15,12 +15,50 @@ CREATE TABLE "account" (
 	"updated_at" timestamp NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "booking" (
+	"id" text PRIMARY KEY NOT NULL,
+	"interview_id" text NOT NULL,
+	"candidate_id" text NOT NULL,
+	"slot_id" text NOT NULL,
+	"slot_index" integer NOT NULL,
+	"status" text NOT NULL,
+	"start" text NOT NULL,
+	"end" text,
+	"meeting_link" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "booking_hold" (
+	"id" text PRIMARY KEY NOT NULL,
+	"slot_id" text NOT NULL,
+	"slot_index" integer NOT NULL,
+	"interview_id" text NOT NULL,
+	"candidate_id" text NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "candidate" (
 	"id" text PRIMARY KEY NOT NULL,
 	"interview_id" text NOT NULL,
 	"full_name" text NOT NULL,
 	"email" text NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "candidate_email_interview_id_unique" UNIQUE("email","interview_id"),
+	CONSTRAINT "candidate_id_interview_id_unique" UNIQUE("id","interview_id")
+);
+--> statement-breakpoint
+CREATE TABLE "email_verification" (
+	"id" text PRIMARY KEY NOT NULL,
+	"email" text NOT NULL,
+	"interview_id" text NOT NULL,
+	"candidate_id" text,
+	"otp" text NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"verified" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "email_verification_email_interview_id_unique" UNIQUE("email","interview_id")
 );
 --> statement-breakpoint
 CREATE TABLE "feedback" (
@@ -48,7 +86,25 @@ CREATE TABLE "interview" (
 	"experience_level" text,
 	"question_list" jsonb,
 	"resume_score" integer,
+	"status" text DEFAULT 'draft' NOT NULL,
+	"expires_at" timestamp,
 	"user_email" text
+);
+--> statement-breakpoint
+CREATE TABLE "interview_session" (
+	"id" text PRIMARY KEY NOT NULL,
+	"candidate_id" text NOT NULL,
+	"interview_id" text NOT NULL,
+	"answers" jsonb NOT NULL,
+	"evaluation" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "interview_slot" (
+	"id" text PRIMARY KEY NOT NULL,
+	"interview_id" text NOT NULL,
+	"slots" jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "resume_questions" (
@@ -94,11 +150,19 @@ CREATE TABLE "verification" (
 );
 --> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "booking_hold" ADD CONSTRAINT "booking_hold_slot_id_interview_slot_id_fk" FOREIGN KEY ("slot_id") REFERENCES "public"."interview_slot"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "booking_hold" ADD CONSTRAINT "booking_hold_interview_id_interview_id_fk" FOREIGN KEY ("interview_id") REFERENCES "public"."interview"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "booking_hold" ADD CONSTRAINT "booking_hold_candidate_id_candidate_id_fk" FOREIGN KEY ("candidate_id") REFERENCES "public"."candidate"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "candidate" ADD CONSTRAINT "candidate_interview_id_interview_id_fk" FOREIGN KEY ("interview_id") REFERENCES "public"."interview"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "email_verification" ADD CONSTRAINT "email_verification_interview_id_interview_id_fk" FOREIGN KEY ("interview_id") REFERENCES "public"."interview"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "email_verification" ADD CONSTRAINT "email_verification_candidate_id_candidate_id_fk" FOREIGN KEY ("candidate_id") REFERENCES "public"."candidate"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "feedback" ADD CONSTRAINT "feedback_candidate_id_candidate_id_fk" FOREIGN KEY ("candidate_id") REFERENCES "public"."candidate"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "feedback" ADD CONSTRAINT "feedback_interview_id_interview_id_fk" FOREIGN KEY ("interview_id") REFERENCES "public"."interview"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "interview" ADD CONSTRAINT "interview_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "interview" ADD CONSTRAINT "interview_user_email_user_email_fk" FOREIGN KEY ("user_email") REFERENCES "public"."user"("email") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "interview_session" ADD CONSTRAINT "interview_session_candidate_id_candidate_id_fk" FOREIGN KEY ("candidate_id") REFERENCES "public"."candidate"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "interview_session" ADD CONSTRAINT "interview_session_interview_id_interview_id_fk" FOREIGN KEY ("interview_id") REFERENCES "public"."interview"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "interview_slot" ADD CONSTRAINT "interview_slot_interview_id_interview_id_fk" FOREIGN KEY ("interview_id") REFERENCES "public"."interview"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "resume_questions" ADD CONSTRAINT "resume_questions_candidate_id_candidate_id_fk" FOREIGN KEY ("candidate_id") REFERENCES "public"."candidate"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "resume_questions" ADD CONSTRAINT "resume_questions_interview_id_interview_id_fk" FOREIGN KEY ("interview_id") REFERENCES "public"."interview"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;

@@ -300,7 +300,7 @@ export default function ScheduledPage() {
   disabled={timeLeft === null || timeLeft > 0}  // 🔒 lock before start
   onClick={() =>
     timeLeft <= 0 &&
-    router.push(`interview/${interview_id}/start-interview`)
+    router.push(`interview/${interview_id}/start`)
   }
   className={`w-full text-lg font-semibold py-3.5 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all
     ${

@@ -1,9 +1,22 @@
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === "production";
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Disable automatic Promise-wrapped route params (Next.js 15 default)
+
+
+  // TypeScript & ESLint behavior
+  typescript: {
+    ignoreBuildErrors: !isProd,
+  },
+  eslint: {
+    ignoreDuringBuilds: !isProd,
+  },
+
+  // Images config
   images: {
-    domains: ["www.gravatar.com"], // allow Gravatar
+    domains: ["www.gravatar.com"],
   },
 };
 
