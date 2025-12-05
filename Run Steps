@@ -1,0 +1,87 @@
+"scripts": {
+// ----------------------------------------------------------
+// DEVELOPMENT
+// ----------------------------------------------------------
+
+// Fast development mode (recommended 90% of the time)
+// Use when actively coding UI/features and want quick reloads.
+"dev": "next dev --turbo",
+
+// Strict development mode (run checks BEFORE starting dev)
+// Use when starting a new feature or before merging code.
+// This will stop if TypeScript or ESLint has errors.
+"dev:checked": "npm run predev && next dev --turbo",
+
+// Runs type checking + linting before dev:checked
+"predev": "npm run type-check && npm run lint",
+
+// ----------------------------------------------------------
+// BUILD & START (Production)
+// ----------------------------------------------------------
+
+// Creates a production build (fails if TS/ESLint errors in prod)
+// Run this before deploying.
+"build": "next build",
+
+// Start the production server (after build)
+"start": "next start",
+
+// ----------------------------------------------------------
+// TYPE CHECKING
+// ----------------------------------------------------------
+
+// Run full TypeScript check once
+// Use before commit, before build, or when fixing TS errors.
+"type-check": "tsc --noEmit",
+
+// Real-time TS checker — shows errors while you code.
+// Run this in a second terminal if you want continuous feedback.
+"type-check:watch": "tsc --noEmit --watch",
+
+// ----------------------------------------------------------
+// LINTING
+// ----------------------------------------------------------
+
+// Check all files for ESLint errors (does NOT auto-fix)
+// Use before commit or before opening a PR.
+"lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+
+// Automatically fix all possible ESLint issues
+// Use when your code gets messy or after large refactors.
+"lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
+
+// ----------------------------------------------------------
+// FULL CODE QUALITY CHECK
+// ----------------------------------------------------------
+
+// Runs TypeScript + ESLint together
+// Use before pushing to GitHub or before deployment.
+"check": "npm run type-check && npm run lint"
+}
+
+When to run which command (simple guide)
+🔥 Daily development
+npm run dev
+
+🔒 When you want to ensure your code is clean before starting dev
+npm run dev:checked
+
+📦 Before deployment (very important)
+npm run check
+npm run build
+
+🧑‍💻 Before pushing a commit or creating a Pull Request
+npm run check
+
+👀 Continuous TypeScript error checking (optional)
+
+Terminal 1:
+
+npm run dev
+
+Terminal 2:
+
+npm run type-check:watch
+
+🧹 Auto-fix lint issues quickly
+npm run lint:fix
